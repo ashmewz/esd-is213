@@ -241,6 +241,16 @@ services:
       - payment-service
       - notification-service
       - access-service
+    volumes:
+      - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8001/ || exit 1"]
       interval: 10s
