@@ -1,0 +1,114 @@
+_format_version: "2.1"
+_transform: true
+
+plugins:
+  - name: file-log
+    service: events-service
+    config:
+      path: /dev/stdout    # Docker captures logs
+  - name: file-log
+    service: order-service
+    config:
+      path: /dev/stdout    
+  - name: file-log
+    service: seat-allocation-service
+    config:
+      path: /dev/stdout    
+  - name: file-log
+    service: notification-service
+    config:
+      path: /dev/stdout    
+  - name: file-log
+    service: payment-service
+    config:
+      path: /dev/stdout   
+  - name: file-log
+    service: swap-service
+    config:
+      path: /dev/stdout    
+
+services:
+  - name: events-service
+    url: http://events-service:5000
+    routes:
+      - name: get-events
+        paths:
+          - /events
+      - name: get-event
+        paths:
+          - /events/{eventId}
+      - name: validate-seat
+        paths:
+          - /events/{eventId}/{seatId}
+
+  - name: order-service
+    url: http://order-service:5000
+    routes:
+      - name: create-order
+        paths:
+          - /order
+        methods: ["POST"]
+      - name: confirm-order
+        paths:
+          - /order/{orderId}
+        methods: ["POST"]
+      - name: cancel-order
+        paths:
+          - /order/{orderId}
+        methods: ["DELETE"]
+      - name: swap-request
+        paths:
+          - /order/{orderId}/swap
+        methods: ["POST"]
+
+  - name: seat-allocation-service
+    url: http://seat-allocation-service:5000
+    routes:
+      - name: create-hold
+        paths:
+          - /hold/{orderId}
+        methods: ["POST"]
+      - name: cancel-hold
+        paths:
+          - /hold/{orderId}
+        methods: ["DELETE"]
+
+  - name: swap-service
+    url: http://swap-service:5000
+    routes:
+      - name: create-swap
+        paths:
+          - /swap/{orderId}
+        methods: ["POST"]
+      - name: cancel-swap
+        paths:
+          - /swap/{orderId}
+        methods: ["DELETE"]
+      - name: confirm-swap
+        paths:
+          - /swap/{orderId}/confirm
+        methods: ["POST"]
+
+  - name: payment-service
+    url: http://payment-service:5000
+    routes:
+      - name: process-payment
+        paths:
+          - /payment/{orderId}
+        methods: ["POST"]
+      - name: refund-payment
+        paths:
+          - /payment/{orderId}/refund
+        methods: ["POST"]
+      - name: adjust-payment
+        paths:
+          - /payment/{orderId}/adjustment
+        methods: ["POST"]
+
+  - name: notification-service
+    url: http://notification-service:5000
+    routes:
+      - name: send-notification
+        paths:
+          - /notification
+        methods: ["POST"]
