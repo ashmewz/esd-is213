@@ -2,35 +2,48 @@ _format_version: "2.1"
 _transform: true
 
 services:
+- name: booking-service
+  url: http://booking-service:5000
+  routes:
+  - name: booking-create
+    paths:
+    - /booking
+    methods: ["POST"]
+
+- name: swap-orchestration-service
+  url: http://swap-orchestration-service:5000
+  routes:
+  - name: swap-request
+    paths:
+    - /swap
+    methods: ["POST","DELETE"]
+  - name: swap-confirm
+    paths:
+    - ~/swap/[^/]+/confirm$
+    methods: ["POST"]
 
 - name: events-service
-  url: http://events-service:5000
+  url: http://event-service:5000
   routes:
   - name: events-root
     paths:
     - /events
+    methods: ["GET"]
   - name: events-id
     paths:
-    - "~/events/[^/]+$"
+    - ~/events/[^/]+$
+    methods: ["GET"]
   - name: events-seat
     paths:
-    - "~/events/[^/]+/[^/]+$"
+    - ~/events/[^/]+/[^/]+$
+    methods: ["GET"]
 
-- name: order-service
+- name: order-admin-service
   url: http://order-service:5000
   routes:
-  - name: order-create
+  - name: order-admin
     paths:
-    - /order
-    methods: ["POST"]
-  - name: order-id
-    paths:
-    - "~/order/[^/]+$"
-    methods: ["POST","DELETE"]
-  - name: order-swap
-    paths:
-    - "~/order/[^/]+/swap$"
-    methods: ["POST"]
+    - /admin/orders
 
 - name: seat-allocation-service
   url: http://seat-allocation-service:5000
@@ -39,18 +52,6 @@ services:
     paths:
     - "~/hold/[^/]+$"
     methods: ["POST","DELETE"]
-
-- name: swap-service
-  url: http://swap-service:5000
-  routes:
-  - name: swap-id
-    paths:
-    - "~/swap/[^/]+$"
-    methods: ["POST","DELETE"]
-  - name: swap-confirm
-    paths:
-    - "~/swap/[^/]+/confirm$"
-    methods: ["POST"]
 
 - name: payment-service
   url: http://payment-service:5000
