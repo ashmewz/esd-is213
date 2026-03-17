@@ -16,5 +16,3 @@
 
 5. stop all containers
     docker compose down
-
-
