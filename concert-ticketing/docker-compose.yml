@@ -106,7 +106,7 @@ services:
 
   # microservices ----------------------------------
   events-service:
-    build: ./services/events-service
+    build: ./services/business/events-service
     container_name: events-service
     environment:
       - DATABASE_URL=postgresql://postgres:password@event-db:5432/eventdb
@@ -127,7 +127,7 @@ services:
       retries: 5
 
   seat-allocation-service:
-    build: ./services/seat-allocation-service
+    build: ./services/business/seat-allocation-service
     container_name: seat-allocation-service
     environment:
       - DATABASE_URL=postgresql://postgres:password@seat-db:5432/seatdb
@@ -148,7 +148,7 @@ services:
       retries: 5
 
   swap-service:
-    build: ./services/swap-service
+    build: ./services/business/swap-service
     container_name: swap-service
     environment:
       - DATABASE_URL=postgresql://postgres:password@swap-db:5432/swapdb
@@ -169,7 +169,7 @@ services:
       retries: 5
 
   payment-service:
-    build: ./services/payment-service
+    build: ./services/business/payment-service
     container_name: payment-service
     environment:
       - DATABASE_URL=postgresql://postgres:password@payment-db:5432/paymentdb
@@ -190,7 +190,7 @@ services:
       retries: 5
 
   notification-service:
-    build: ./services/notification-service
+    build: ./services/wrapper/notification-service
     container_name: notification-service
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
