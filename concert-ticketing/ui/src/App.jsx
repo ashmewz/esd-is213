@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import SeatmapPage from "./pages/SeatmapPage";
+import CheckoutPage from "./pages/CheckoutPage";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/events/:eventId/seats" element={<SeatmapPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
           </Routes>
         </div>
       </CartProvider>

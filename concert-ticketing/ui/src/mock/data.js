@@ -5,7 +5,7 @@ export const EVENTS = [
     venueName: "Singapore National Stadium",
     date: "Fri 15 – Sat 16 Aug 2026",
     status: "active",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/en/9/9b/Eras_Tour_poster.jpg",
+    imageUrl: "/taylor.jpg",
     dates: [
       { dateId: "2026-08-15", label: "Fri 15 Aug 2026", times: ["6:00 PM", "8:30 PM"] },
       { dateId: "2026-08-16", label: "Sat 16 Aug 2026", times: ["6:00 PM", "8:30 PM"] },
@@ -17,7 +17,7 @@ export const EVENTS = [
     venueName: "Singapore Indoor Stadium",
     date: "Sat 22 – Sun 23 Nov 2026",
     status: "active",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/en/5/5e/Coldplay_-_Music_of_the_Spheres.png",
+    imageUrl: "/coldplay.jpg",
     dates: [
       { dateId: "2026-11-22", label: "Sat 22 Nov 2026", times: ["7:30 PM"] },
       { dateId: "2026-11-23", label: "Sun 23 Nov 2026", times: ["7:30 PM"] },
@@ -29,7 +29,7 @@ export const EVENTS = [
     venueName: "Resorts World Theatre",
     date: "Sat 10 Jan 2026",
     status: "active",
-    imageUrl: null,
+    imageUrl: "/bruno.jpg",
     dates: [
       { dateId: "2026-01-10", label: "Sat 10 Jan 2026", times: ["8:00 PM"] },
     ],
