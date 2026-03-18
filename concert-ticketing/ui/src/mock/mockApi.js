@@ -9,6 +9,13 @@ export async function getEvents() {
   return EVENTS;
 }
 
+export async function getEvent(eventId) {
+  await delay();
+  const event = EVENTS.find((e) => e.eventId === Number(eventId));
+  if (!event) throw new Error("Event not found");
+  return event;
+}
+
 export async function getSeatmap(eventId) {
   await delay();
   const data = SEATMAPS[Number(eventId)];

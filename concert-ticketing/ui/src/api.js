@@ -2,6 +2,7 @@
 export { USER_ID } from "./mock/mockApi";
 export {
   getEvents,
+  getEvent,
   getSeatmap,
   validateSeat,
   createBooking,
