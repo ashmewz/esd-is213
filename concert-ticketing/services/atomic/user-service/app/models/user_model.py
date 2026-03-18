@@ -4,6 +4,7 @@ db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = "users"
+    __table_args__ = {"schema": "user_service"}
 
     user_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)

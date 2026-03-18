@@ -18,98 +18,12 @@ services:
       retries: 5
       start_period: 10s
 
-  # databases --------------------------------------
-  order-db:
-    image: postgres:15
-    container_name: order-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: orderdb
-    ports:
-      - "5432:5432"
-    networks:
-      - ticketing-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  event-db:
-    image: postgres:15
-    container_name: event-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: eventdb
-    ports:
-      - "5433:5432"
-    networks:
-      - ticketing-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  seat-db:
-    image: postgres:15
-    container_name: seat-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: seatdb
-    ports:
-      - "5434:5432"
-    networks:
-      - ticketing-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  swap-db:
-    image: postgres:15
-    container_name: swap-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: swapdb
-    ports:
-      - "5435:5432"
-    networks:
-      - ticketing-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  payment-db:
-    image: postgres:15
-    container_name: payment-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: paymentdb
-    ports:
-      - "5436:5432"
-    networks:
-      - ticketing-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # microservices ----------------------------------
   events-service:
-    build: ./services/events-service
+    build: ./service/atomic/events-service
     container_name: events-service
     environment:
-      - DATABASE_URL=postgresql://postgres:password@event-db:5432/eventdb
+      - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
       - "5001:5000"
@@ -118,8 +32,6 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-      event-db:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
@@ -127,19 +39,17 @@ services:
       retries: 5
 
   seat-allocation-service:
-    build: ./services/seat-allocation-service
+    build: ./services/atomic/seat-allocation-service
     container_name: seat-allocation-service
     environment:
-      - DATABASE_URL=postgresql://postgres:password@seat-db:5432/seatdb
+      - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
-      - "5003:5000"
+      - "5002:5000"
     networks:
       - ticketing-network
     depends_on:
       rabbitmq:
-        condition: service_healthy
-      seat-db:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
@@ -148,10 +58,29 @@ services:
       retries: 5
 
   swap-service:
-    build: ./services/swap-service
+    build: ./services/atomic/swap-service
     container_name: swap-service
     environment:
-      - DATABASE_URL=postgresql://postgres:password@swap-db:5432/swapdb
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "5003:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user-service:
+    build: ./services/atomic/user-service
+    container_name: user-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
       - "5004:5000"
@@ -160,19 +89,16 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-      swap-db:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  payment-service:
-    build: ./services/payment-service
-    container_name: payment-service
+  booking-service:
+    build: ./services/composite/booking-service
+    container_name: booking-service
     environment:
-      - DATABASE_URL=postgresql://postgres:password@payment-db:5432/paymentdb
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
       - "5005:5000"
@@ -181,17 +107,15 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-      payment-db:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  notification-service:
-    build: ./services/notification-service
-    container_name: notification-service
+  swap-orchestration-service:
+    build: ./services/composite/swap-orchestration-service
+    container_name: swap-orchestration-service
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
@@ -207,13 +131,32 @@ services:
       timeout: 5s
       retries: 5
 
-  access-service:
-    build: ./services/access-service
-    container_name: access-service
+  notification-service:
+    build: ./services/wrapper/notification-service
+    container_name: notification-service
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
       - "5007:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-service:
+    build: ./services/wrapper/payment-service
+    container_name: payment-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "5008:5000"
     networks:
       - ticketing-network
     depends_on:
@@ -240,7 +183,7 @@ services:
       - swap-service
       - payment-service
       - notification-service
-      - access-service
+      - booking-service
     volumes:
       - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
     environment:
