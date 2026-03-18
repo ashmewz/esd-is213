@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getEvent } from "../api";
+import { ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
+import { getEvent, getSeatmap } from "../api";
 
 // ── Calendar helpers ──────────────────────────────────────────────────────────
 const DAYS   = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -119,6 +119,8 @@ export default function EventDetailPage() {
   const [loading,      setLoading]      = useState(true);
   const [selectedDate, setSelectedDate] = useState(null); // dateId string
   const [selectedTime, setSelectedTime] = useState(null);
+  const [autoPicked,   setAutoPicked]   = useState(null); // seat for "pick for me" modal
+  const [picking,      setPicking]      = useState(false);
 
   useEffect(() => {
     getEvent(eventId)
@@ -135,6 +137,30 @@ export default function EventDetailPage() {
     navigate(
       `/events/${eventId}/seats?date=${selectedDate}&time=${encodeURIComponent(selectedTime)}`
     );
+  }
+
+  async function handlePickForMe() {
+    setPicking(true);
+    try {
+      const { seats } = await getSeatmap(eventId);
+      const available = seats.filter((s) => s.status === "available");
+      if (available.length === 0) return;
+      const pick = available[Math.floor(Math.random() * available.length)];
+      setAutoPicked(pick);
+    } finally {
+      setPicking(false);
+    }
+  }
+
+  function handleRepick() {
+    setAutoPicked(null);
+    handlePickForMe();
+  }
+
+  function handleConfirmAutoPick() {
+    navigate(`/checkout/${eventId}/${autoPicked.seatId}`, {
+      state: { seat: autoPicked, event, date: selectedDate, time: selectedTime },
+    });
   }
 
   if (loading) {
@@ -240,15 +266,62 @@ export default function EventDetailPage() {
                 Choose My Own Seats
               </button>
               <button
-                disabled
-                className="w-full py-4 bg-gray-100 text-gray-400 font-semibold rounded-lg cursor-not-allowed"
+                onClick={handlePickForMe}
+                disabled={picking}
+                className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition disabled:opacity-50"
               >
-                Pick Seats For Me
+                {picking ? "Finding best seat..." : "Pick Seats For Me"}
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* ── Auto-pick modal ─────────────────────────────────────── */}
+      {autoPicked && (
+        <div
+          className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/20"
+          onClick={() => setAutoPicked(null)}
+        >
+          <div
+            className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-sm p-6 mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-center text-xs font-bold tracking-widest text-gray-400 uppercase mb-3">
+              We picked a seat for you
+            </p>
+            <div className="grid grid-cols-3 divide-x border rounded-lg mb-4">
+              <div className="px-3 py-3 text-center">
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Tier</p>
+                <p className="font-bold text-gray-800">{autoPicked.tier}</p>
+              </div>
+              <div className="px-3 py-3 text-center">
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Row</p>
+                <p className="font-bold text-gray-800">{autoPicked.rowNo}</p>
+              </div>
+              <div className="px-3 py-3 text-center">
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Seat</p>
+                <p className="font-bold text-gray-800">{autoPicked.seatNo}</p>
+              </div>
+            </div>
+            <p className="text-center text-orange-500 font-bold text-xl mb-5">
+              ${autoPicked.basePrice}
+            </p>
+            <button
+              onClick={handleConfirmAutoPick}
+              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition mb-2"
+            >
+              Continue to Checkout →
+            </button>
+            <button
+              onClick={handleRepick}
+              className="w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition"
+            >
+              <Shuffle size={14} /> Pick another seat
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
