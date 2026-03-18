@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import EventsPage from "./pages/EventsPage";
+import SeatmapPage from "./pages/SeatmapPage";
 
 export default function App() {
   return (
@@ -10,7 +11,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/events" replace />} />
           <Route path="/events" element={<EventsPage />} />
-          {/* remaining pages to be added */}
+          <Route path="/events/:eventId" element={<SeatmapPage />} />
         </Routes>
       </div>
     </BrowserRouter>
