@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getSeatmap } from "../api";
 import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X } from "lucide-react";
+import { useCart } from "../context/CartContext";
 
 const TIERS = {
   VIP:  { color: "bg-orange-400", ring: "ring-orange-600", dot: "bg-orange-400", label: "VIP",   price: 288 },
@@ -35,12 +36,13 @@ export default function SeatmapPage() {
   const [visibleTiers,  setVisibleTiers]  = useState(new Set(Object.keys(TIERS)));
   const [showNumbers,   setShowNumbers]   = useState(true);
 
+  const { addToCart } = useCart();
+
   // Flow state
   const [selectedSeats,   setSelectedSeats]   = useState([]);  // seats with tick
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [cartSeats,       setCartSeats]       = useState([]);  // confirmed through modal
   const [cartBarExpanded, setCartBarExpanded] = useState(false);
-  const [showCartPopup,   setShowCartPopup]   = useState(false);
 
   const inCartBar = cartSeats.length > 0;
   const cartTotal = cartSeats.reduce((s, seat) => s + seat.basePrice + FEE, 0);
@@ -88,11 +90,11 @@ export default function SeatmapPage() {
     setSelectedSeats([]);
     setCartSeats([]);
     setCartBarExpanded(false);
-    setShowCartPopup(false);
   }
 
   function handleAddToCart() {
-    setShowCartPopup(true);
+    addToCart(cartSeats.map((seat) => ({ seat, event: data.event, date, time })));
+    handleClearAll();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -311,66 +313,6 @@ export default function SeatmapPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── Cart Popup (top-right dropdown) ─────────────────── */}
-      {showCartPopup && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowCartPopup(false)} />
-          <div className="fixed top-24 right-6 z-50 bg-white shadow-2xl rounded-xl w-80 border overflow-hidden">
-            <div className="p-5">
-              <button
-                onClick={() => setShowCartPopup(false)}
-                className="text-sm font-medium text-gray-700 hover:text-orange-500 underline block mb-3"
-              >
-                Continue shopping
-              </button>
-              <hr className="mb-3" />
-              <p className="text-sm text-gray-600 mb-3">The following items are in your cart.</p>
-
-              {cartSeats.map((seat) => (
-                <div key={seat.seatId} className="border rounded-lg p-3 mb-2">
-                  <div className="flex justify-between items-start mb-1">
-                    <p className="font-semibold text-sm text-gray-800 leading-tight">{event.name}</p>
-                    <button
-                      onClick={() => handleRemoveFromCart(seat.seatId)}
-                      className="text-gray-400 hover:text-red-500 ml-2 shrink-0"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-2">{date}{time && `, ${time}`}</p>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>1 x Adult (${seat.basePrice})</span>
-                    <span>${seat.basePrice}.00</span>
-                  </div>
-                </div>
-              ))}
-
-              <div className="flex justify-between text-sm text-gray-500 mt-3">
-                <span>Fees & Charges:</span>
-                <span>${cartSeats.length * FEE}.00</span>
-              </div>
-              <div className="flex justify-between font-bold text-gray-800 mt-1 mb-4">
-                <span>Cart Subtotal:</span>
-                <span>${cartTotal}.00</span>
-              </div>
-
-              <button
-                onClick={() => navigate("/checkout", { state: { seats: cartSeats, event, date, time } })}
-                className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
-              >
-                Go to Checkout
-              </button>
-              <button
-                onClick={handleClearAll}
-                className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
-        </>
       )}
 
       {/* ── Sticky bottom: "Click Here to Select Ticket Types" ── */}
