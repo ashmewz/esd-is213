@@ -20,7 +20,7 @@ services:
 
   # microservices ----------------------------------
   events-service:
-    build: ./service/atomic/events-service
+    build: ./services/atomic/events-service
     container_name: events-service
     environment:
       - DATABASE_URL=${DATABASE_URL}
