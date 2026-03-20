@@ -6,5 +6,4 @@ class Config:
     ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL")
     PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL")
     NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL")
-
     RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
