@@ -1,30 +1,32 @@
-from app.models.user_model import db, User
+from app.models.user_model import User
+from sqlalchemy.orm import Session
 
 class UserRepository:
 
     @staticmethod
-    def create_user(username, email, password):
+    def create_user(db: Session, username, email, password):
         user = User(username=username, email=email, password=password)
-        db.session.add(user)
-        db.session.commit()
+        db.add(user)
+        db.commit()
+        db.refresh(user)
         return user
 
     @staticmethod
-    def get_user_by_id(user_id):
-        return User.query.get(user_id)
+    def get_user_by_id(db: Session, user_id):
+        return db.query(User).filter(User.user_id == user_id).first()
 
     @staticmethod
-    def get_user_by_email(email):
-        return User.query.filter_by(email=email).first()
+    def get_user_by_email(db: Session, email):
+        return db.query(User).filter(User.email == email).first()
 
     @staticmethod
-    def get_all_users():
-        return User.query.all()
+    def get_all_users(db: Session):
+        return db.query(User).all()
 
     @staticmethod
-    def delete_user(user_id):
-        user = User.query.get(user_id)
+    def delete_user(db: Session, user_id):
+        user = db.query(User).filter(User.user_id == user_id).first()
         if user:
-            db.session.delete(user)
-            db.session.commit()
+            db.delete(user)
+            db.commit()
         return user
