@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, Integer, Numeric, func
-from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 class Event(Base):
