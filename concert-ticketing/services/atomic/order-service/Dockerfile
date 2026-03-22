@@ -17,10 +17,10 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
-EXPOSE 5000
+EXPOSE 5002
 
 ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
+ENV FLASK_RUN_PORT=5002
 
 CMD ["sh", "-c", "alembic upgrade head && python app.py"]
