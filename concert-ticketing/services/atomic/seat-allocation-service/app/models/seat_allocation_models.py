@@ -1,8 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-db = SQLAlchemy()
+from app import db
+from sqlalchemy.dialects.postgresql import UUID
 
 class Hold(db.Model):
     __tablename__ = "holds"
@@ -35,7 +34,7 @@ class SeatAssignment(db.Model):
     event_id = db.Column(UUID(as_uuid=True), nullable=False)
     seat_id = db.Column(UUID(as_uuid=True), nullable=False)
     order_id = db.Column(UUID(as_uuid=True), nullable=False)
-    hold_id = db.Column(UUID(as_uuid=True))
+    hold_id = db.Column(UUID(as_uuid=True), nullable=True)
     status = db.Column(db.String(20), nullable=False)
     assigned_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
