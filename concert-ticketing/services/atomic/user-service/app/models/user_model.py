@@ -5,10 +5,11 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = {"schema": "user_service"}
 
-    user_id = Column(String, primary_key=True)
+    user_id = Column(Integer, primary_key=True)
     username = Column(String(100), unique=True, nullable=False)
     email = Column(String(150), unique=True, nullable=False)
-    testpw = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
     def to_dict(self):
         return {
