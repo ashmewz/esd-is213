@@ -19,7 +19,7 @@ VENUE_V2 = "b0000002-0000-4000-8000-000000000001"
 events = [
     {
         "eventId": EVENT_E1,
-        "venueId": VENUE_V1,sd
+        "venueId": VENUE_V1,
         "name": "Taylor Swift: Eras Tour",
         "date": "2025-06-15",
         "seatmap": 1,
