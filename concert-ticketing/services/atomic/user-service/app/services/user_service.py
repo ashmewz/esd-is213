@@ -16,8 +16,7 @@ class UserService:
             password=data["password"]
         )
 
-        publish_event("user.created", user.to_dict())
-
+        # publish_event("user.created", user.to_dict())
         return user
 
     @staticmethod
@@ -37,5 +36,5 @@ class UserService:
         if not user:
             raise Exception("User not found")
 
-        publish_event("user.deleted", {"userId": user_id})
+        # publish_event("user.deleted", {"userId": user_id})
         return user

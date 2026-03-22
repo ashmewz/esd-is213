@@ -16,7 +16,7 @@ if not db_url:
 config.set_main_option("sqlalchemy.url", db_url)
 
 from app.core.database import Base
-from app.models.user_model import User
+import app.models.user_model
 
 target_metadata = Base.metadata
 
@@ -33,9 +33,7 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         include_schemas=True,
-        include_object=include_object,
-        version_table="alembic_version",
-        version_table_schema="user_service"
+        include_object=include_object
     )
 
     with context.begin_transaction():
@@ -56,7 +54,9 @@ def run_migrations_online():
             compare_type=True,
             compare_server_default=True,
             include_schemas=True,
-            include_object=include_object
+            include_object=include_object,
+            version_table="alembic_version",
+            version_table_schema="user_service"
         )
 
         with context.begin_transaction():
