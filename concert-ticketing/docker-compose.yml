@@ -167,6 +167,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  order-service:
+    build: ./services/atomic/order-service
+    container_name: order-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "5009:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Kong API Gateway ----------------------------------
   kong:
@@ -184,6 +203,7 @@ services:
       - payment-service
       - notification-service
       - booking-service
+      - order-service
     volumes:
       - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
     environment:
