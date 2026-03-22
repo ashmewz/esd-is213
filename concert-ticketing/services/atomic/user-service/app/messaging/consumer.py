@@ -1,5 +1,5 @@
 import pika
-from config import Config
+from app.core.config import Config
 
 def start_consumer():
 
