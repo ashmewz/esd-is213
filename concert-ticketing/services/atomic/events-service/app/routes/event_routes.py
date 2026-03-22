@@ -41,14 +41,7 @@ def list_seats_for_event(event_id):
 def get_seat(event_id, seat_id):
     if event_by_id(event_id) is None:
         return jsonify({"error": "Event not found"}), 404
-    seat = next(
-        (
-            s
-            for s in seats
-            if s["seatId"] == seat_id and s["eventId"] == event_id
-        ),
-        None,
-    )
-    if not seat:
-        return jsonify({"error": "Seat not found"}), 404
-    return jsonify(_seat_response(seat)), 200
+    for s in seats:
+        if s["seatId"] == seat_id and s["eventId"] == event_id:
+            return jsonify(_seat_response(s)), 200
+    return jsonify({"error": "Seat not found"}), 404
