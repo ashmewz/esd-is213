@@ -1,9 +1,11 @@
-import os, sys
+import os
+import sys
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+from flask import Flask
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 if os.getenv("ENV") != "production":
     load_dotenv()
 
@@ -15,10 +17,16 @@ if not db_url:
 
 config.set_main_option("sqlalchemy.url", db_url)
 
-from app.core.database import Base
-import app.models.order_models
+# Register models on db.metadata without running create_all() (app factory does that at runtime).
+from app import db  # noqa: E402
 
-target_metadata = Base.metadata
+_flask_app = Flask(__name__)
+_flask_app.config.from_object("config.Config")
+db.init_app(_flask_app)
+with _flask_app.app_context():
+    from app.models import order_models  # noqa: F401
+
+target_metadata = db.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
@@ -33,7 +41,7 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         include_schemas=True,
-        include_object=include_object
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -56,7 +64,7 @@ def run_migrations_online():
             include_schemas=True,
             include_object=include_object,
             version_table="alembic_version",
-            version_table_schema="order_service"
+            version_table_schema="order_service",
         )
 
         with context.begin_transaction():
