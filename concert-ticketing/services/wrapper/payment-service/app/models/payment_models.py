@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Numeric, Text, ForeignKey, CheckConstraint, func
+from sqlalchemy import Column, DateTime, Numeric, Text, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from app import db
 import uuid
@@ -47,38 +47,4 @@ class Transaction(db.Model):
             "failureReason": self.failure_reason,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
-        }
-
-
-class PaymentLedger(db.Model):
-    __tablename__ = "payment_ledger"
-    __table_args__ = (
-        CheckConstraint(
-            "entry_type IN ('DEBIT','CREDIT')",
-            name="check_entry_type"
-        ),
-        {"schema": "payment_service"}
-    )
-
-    ledger_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(Text, nullable=False)
-    transaction_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("payment_service.transactions.transaction_id"),
-        nullable=True
-    )
-    entry_type = Column(Text)
-    amount = Column(Numeric(10, 2))
-    description = Column(Text)
-    created_at = Column(DateTime, server_default=func.now())
-
-    def to_dict(self):
-        return {
-            "ledgerId": str(self.ledger_id),
-            "orderId": self.order_id,
-            "transactionId": str(self.transaction_id) if self.transaction_id else None,
-            "entryType": self.entry_type,
-            "amount": float(self.amount) if self.amount else None,
-            "description": self.description,
-            "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
