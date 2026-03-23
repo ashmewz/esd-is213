@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func
+from sqlalchemy import Column, String, DateTime, func, UniqueConstraint, ForeignKey
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -14,6 +14,7 @@ class Hold(Base):
     expiry = Column(DateTime, nullable=False)
     status = Column(String(20), default="ACTIVE")
     created_at = Column(DateTime, server_default=func.now())
+    UniqueConstraint("event_id", "seat_id", "order_id", name="uq_active_hold")
 
     def to_dict(self):
         return {
@@ -31,10 +32,10 @@ class SeatAssignment(Base):
     __table_args__ = {"schema": "seat_allocation_service"}
 
     seat_assign_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    event_id = Column(UUID(as_uuid=True), nullable=False)
-    seat_id = Column(UUID(as_uuid=True), nullable=False)
-    order_id = Column(UUID(as_uuid=True), nullable=False)
-    hold_id = Column(UUID(as_uuid=True))
+    event_id = Column(UUID(as_uuid=True), ForeignKey("seat_allocation_service.holds.event_id"), nullable=False)
+    seat_id = Column(UUID(as_uuid=True), ForeignKey("seat_allocation_service.holds.seat_id"), nullable=False)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("seat_allocation_service.holds.order_id"), nullable=False)
+    hold_id = Column(UUID(as_uuid=True), ForeignKey("seat_allocation_service.holds.hold_id"))
     status = Column(String(20), nullable=False)
     assigned_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

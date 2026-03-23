@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, Numeric
+from sqlalchemy import Column, String, DateTime, func, Numeric, UniqueConstraint
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -36,6 +36,7 @@ class SwapMatch(Base):
     request_b = Column(UUID(as_uuid=True))
     status = Column(String(30))
     created_at = Column(DateTime, server_default=func.now())
+    UniqueConstraint("request_a", "request_b", name="uq_swap_pair")
 
     def to_dict(self):
         return {
