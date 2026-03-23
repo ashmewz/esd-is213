@@ -2,12 +2,11 @@ import logging
 
 from app import db
 from app.models.payment_models import Transaction
-from app.providers.mock_provider import MockPaymentProvider
+from app.providers.stripe_provider import StripeProvider
 
 logger = logging.getLogger(__name__)
 
-# Swap MockPaymentProvider for a real provider here when ready
-_provider = MockPaymentProvider()
+_provider = StripeProvider()
 
 _SUPPORTED_CURRENCIES = frozenset({"SGD", "USD", "EUR"})
 _SUPPORTED_TYPES = frozenset({"PURCHASE"})
