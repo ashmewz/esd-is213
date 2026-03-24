@@ -6,3 +6,5 @@ python-dotenv==1.0.0
 requests==2.32.0
 sqlalchemy
 alembic
+pytest==8.3.5
+stripe==11.4.1

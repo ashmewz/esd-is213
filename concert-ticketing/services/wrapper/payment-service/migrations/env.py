@@ -15,10 +15,11 @@ if not db_url:
 
 config.set_main_option("sqlalchemy.url", db_url)
 
-from app.core.database import Base
-import app.models.payment_models
+from app import create_app, db
+create_app()
+import app.models.payment_models  # noqa: F401
 
-target_metadata = Base.metadata
+target_metadata = db.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
