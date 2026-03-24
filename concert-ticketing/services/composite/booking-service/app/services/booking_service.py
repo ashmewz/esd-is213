@@ -22,7 +22,9 @@ class BookingService:
         hold = self.seat_client.create_hold(order["orderId"], event_id, seat_id)
 
         payment = self.payment_client.process_payment(
-            order["orderId"], seat["basePrice"]
+            order_id=order["orderId"],
+            user_id=user_id,
+            amount=seat["basePrice"],
         )
 
         if payment["status"] != "SUCCESS":

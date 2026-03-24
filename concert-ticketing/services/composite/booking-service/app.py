@@ -1,8 +1,10 @@
-from flask import Flask
-from app.controllers.booking_controller import booking_bp
+from flask import Flask, jsonify
 
 app = Flask(__name__)
-app.register_blueprint(booking_bp)
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)

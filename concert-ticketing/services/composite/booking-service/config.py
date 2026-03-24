@@ -1,10 +1,9 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Config:
-    EVENT_SERVICE_URL = os.getenv("EVENT_SERVICE_URL")
-    SEAT_SERVICE_URL = os.getenv("SEAT_SERVICE_URL")
-    ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL")
-    PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL")
-    NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL")
-
-    RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://payment-service:5000")

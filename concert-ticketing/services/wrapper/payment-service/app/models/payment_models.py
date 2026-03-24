@@ -1,52 +1,50 @@
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, DateTime, Numeric, Text, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
+from app import db
 import uuid
 
-db = SQLAlchemy()
 
 class Transaction(db.Model):
     __tablename__ = "transactions"
-    __table_args__ = {"schema": "payment_service"}
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('PAYMENT','REFUND','ADJUSTMENT','SWAP_SETTLEMENT')",
+            name="check_transaction_type"
+        ),
+        CheckConstraint(
+            "status IN ('PENDING','SUCCESS','FAILED')",
+            name="check_transaction_status"
+        ),
+        {"schema": "payment_service"}
+    )
 
-    transaction_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = db.Column(UUID(as_uuid=True), nullable=False)
-    type = db.Column(db.String(30))
-    amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(10), default="SGD")
-    platform_fee = db.Column(db.Numeric(10, 2), default=0)
-    external_ref_id = db.Column(db.String(255))
-    status = db.Column(db.String(20), default="PENDING")
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(Text, nullable=False)
+    user_id = Column(Text, nullable=True)
+    type = Column(Text)                             # PAYMENT, REFUND, ADJUSTMENT, SWAP_SETTLEMENT
+    amount = Column(Numeric(10, 2), nullable=False)
+    currency = Column(Text, default="SGD")
+    platform_fee = Column(Numeric(10, 2), default=0)
+    external_ref_id = Column(Text)                  # provider's transaction reference
+    idempotency_key = Column(Text, unique=True, nullable=True)
+    status = Column(Text, default="PENDING")        # PENDING, SUCCESS, FAILED
+    failure_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     def to_dict(self):
         return {
             "transactionId": str(self.transaction_id),
-            "orderId": str(self.order_id),
+            "orderId": self.order_id,
+            "userId": self.user_id,
             "type": self.type,
             "amount": float(self.amount),
-            "platformFee": float(self.platform_fee),
-            "status": self.status
-        }
-
-
-class PaymentLedger(db.Model):
-    __tablename__ = "payment_ledger"
-    __table_args__ = {"schema": "payment_service"}
-
-    ledger_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = db.Column(UUID(as_uuid=True), nullable=False)
-    transaction_id = db.Column(UUID(as_uuid=True))
-    entry_type = db.Column(db.String(10))
-    amount = db.Column(db.Numeric(10, 2))
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-
-    def to_dict(self):
-        return {
-            "ledgerId": str(self.ledger_id),
-            "orderId": str(self.order_id),
-            "transactionId": str(self.transaction_id) if self.transaction_id else None,
-            "entryType": self.entry_type,
-            "amount": float(self.amount) if self.amount else None,
-            "description": self.description
+            "currency": self.currency,
+            "platformFee": float(self.platform_fee) if self.platform_fee else 0,
+            "externalRefId": self.external_ref_id,
+            "idempotencyKey": self.idempotency_key,
+            "status": self.status,
+            "failureReason": self.failure_reason,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
