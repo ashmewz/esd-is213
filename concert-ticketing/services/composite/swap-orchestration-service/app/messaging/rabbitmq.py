@@ -1,19 +1,14 @@
 import pika
-import json
-from config import Config
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-def publish_event(event_name, payload):
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host=Config.RABBITMQ_HOST)
-    )
-    channel = connection.channel()
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
-    channel.queue_declare(queue=event_name)
+def get_connection():
+    params = pika.URLParameters(RABBITMQ_URL)
+    return pika.BlockingConnection(params)
 
-    channel.basic_publish(
-        exchange='',
-        routing_key=event_name,
-        body=json.dumps(payload)
-    )
-
-    connection.close()
+def get_channel():
+    conn = get_connection()
+    return conn.channel(), conn
