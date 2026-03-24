@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+import uuid
+
+from flask import Blueprint, jsonify, request
 
 from temp_data import event_by_id, events, seats
 
@@ -27,6 +29,47 @@ def hello():
 @event_bp.route("/events")
 def list_events():
     return jsonify(events), 200
+
+
+@event_bp.route("/events", methods=["POST"])
+def create_event():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    required_fields = ["venueId", "name", "date", "seatmap", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    new_event = {
+        "eventId": str(uuid.uuid4()),
+        "venueId": data["venueId"],
+        "name": data["name"],
+        "date": data["date"],
+        "seatmap": data["seatmap"],
+        "status": data["status"],
+    }
+    events.append(new_event)
+    return jsonify(new_event), 201
+
+
+@event_bp.route("/events/<event_id>", methods=["PUT"])
+def update_event(event_id):
+    event = event_by_id(event_id)
+    if event is None:
+        return jsonify({"error": "Event not found"}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    updatable_fields = ["venueId", "name", "date", "seatmap", "status"]
+    for field in updatable_fields:
+        if field in data:
+            event[field] = data[field]
+
+    return jsonify(event), 200
 
 
 @event_bp.route("/events/<event_id>/seats")
