@@ -1,6 +1,6 @@
 import os
 import stripe
-from app.providers.payment_provider import PaymentProvider, ChargeResult
+from app.providers.payment_provider import PaymentProvider, ChargeResult, RefundResult
 
 
 class StripeProvider(PaymentProvider):
@@ -47,3 +47,17 @@ class StripeProvider(PaymentProvider):
         except stripe.error.StripeError as e:
             # Any other Stripe error
             return ChargeResult(success=False, failure_reason=str(e))
+
+    def refund(self, provider_txn_id: str, amount: float) -> RefundResult:
+        try:
+            amount_in_cents = int(round(amount * 100))
+
+            refund = stripe.Refund.create(
+                payment_intent=provider_txn_id,  # pi_xxx from the original charge
+                amount=amount_in_cents,
+            )
+
+            return RefundResult(success=True, provider_refund_id=refund.id)
+
+        except stripe.error.StripeError as e:
+            return RefundResult(success=False, failure_reason=str(e))

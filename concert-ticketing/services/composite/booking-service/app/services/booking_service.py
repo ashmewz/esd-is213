@@ -33,14 +33,12 @@ class BookingService:
 
         self.seat_client.confirm_seat(order["orderId"], seat_id)
         self.order_client.confirm_order(order["orderId"])
+
+        # Notification Service consumes this event from RabbitMQ directly
+        # No direct HTTP call needed
         publish_event("TicketPurchased", {
             "orderId": order["orderId"],
             "userId": user_id
-        })
-
-        self.notification_client.send_notification({
-            "userId": user_id,
-            "message": "Booking confirmed!"
         })
 
         return {

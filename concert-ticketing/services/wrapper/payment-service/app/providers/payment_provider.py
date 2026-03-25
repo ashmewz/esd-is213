@@ -2,11 +2,20 @@ from abc import ABC, abstractmethod
 
 
 class ChargeResult:
-    """Standardised result returned by any payment provider."""
+    """Standardised result returned by any payment provider for a charge."""
 
     def __init__(self, success: bool, provider_txn_id: str = None, failure_reason: str = None):
         self.success = success
         self.provider_txn_id = provider_txn_id  # reference ID from the external provider
+        self.failure_reason = failure_reason
+
+
+class RefundResult:
+    """Standardised result returned by any payment provider for a refund."""
+
+    def __init__(self, success: bool, provider_refund_id: str = None, failure_reason: str = None):
+        self.success = success
+        self.provider_refund_id = provider_refund_id  # e.g. Stripe re_xxx
         self.failure_reason = failure_reason
 
 
@@ -23,5 +32,15 @@ class PaymentProvider(ABC):
 
         Returns a ChargeResult indicating success or failure.
         Must never raise — all provider errors should be caught and returned as a failed ChargeResult.
+        """
+        pass
+
+    @abstractmethod
+    def refund(self, provider_txn_id: str, amount: float) -> RefundResult:
+        """Refund a previously successful charge.
+
+        provider_txn_id is the external reference from the original charge (e.g. pi_xxx for Stripe).
+        Returns a RefundResult indicating success or failure.
+        Must never raise — all provider errors should be caught and returned as a failed RefundResult.
         """
         pass

@@ -18,4 +18,8 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    # Start RabbitMQ consumer for Scenario B (RefundRequired events)
+    from app.messaging.consumer import start_consumer
+    start_consumer(app)
+
     return app

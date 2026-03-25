@@ -11,6 +11,93 @@ _provider = StripeProvider()
 _SUPPORTED_CURRENCIES = frozenset({"SGD", "USD", "EUR"})
 _SUPPORTED_TYPES = frozenset({"PURCHASE"})
 
+
+def process_refund(order_id, user_id, amount, currency, idempotency_key=None):
+    """Process a refund for Scenario B.
+
+    Looks up the original SUCCESS transaction for the order, calls Stripe
+    to issue a refund, and stores a new REFUND transaction record.
+    Raises ValueError for invalid input or if no original transaction is found.
+    """
+    if not order_id or not user_id:
+        raise ValueError("orderId and userId are required.")
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        raise ValueError("amount must be a number.")
+
+    if amount <= 0:
+        raise ValueError("amount must be greater than 0.")
+
+    # --- Idempotency check ---
+    if idempotency_key:
+        existing = db.session.query(Transaction).filter_by(
+            idempotency_key=idempotency_key
+        ).first()
+        if existing:
+            logger.info("Idempotent refund request for key=%s", idempotency_key)
+            return existing
+
+    # --- Look up the original successful transaction ---
+    original = db.session.query(Transaction).filter_by(
+        order_id=str(order_id),
+        type="PAYMENT",
+        status="SUCCESS",
+    ).first()
+
+    if not original:
+        raise ValueError(f"No successful payment transaction found for orderId '{order_id}'.")
+
+    if not original.external_ref_id:
+        raise ValueError(f"Original transaction has no provider reference for orderId '{order_id}'.")
+
+    # --- Create a PENDING refund transaction ---
+    txn = Transaction(
+        order_id=str(order_id),
+        user_id=str(user_id),
+        type="REFUND",
+        amount=amount,
+        currency=str(currency).upper() if currency else original.currency,
+        idempotency_key=idempotency_key or None,
+        status="PENDING",
+    )
+    try:
+        db.session.add(txn)
+        db.session.flush()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Failed to create pending refund transaction")
+        raise
+
+    # --- Call Stripe to issue the refund ---
+    try:
+        result = _provider.refund(
+            provider_txn_id=original.external_ref_id,  # pi_xxx
+            amount=amount,
+        )
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Unexpected error from payment provider during refund")
+        raise RuntimeError("Payment provider error.") from exc
+
+    # --- Update refund transaction with result ---
+    if result.success:
+        txn.status = "SUCCESS"
+        txn.external_ref_id = result.provider_refund_id  # re_xxx from Stripe
+    else:
+        txn.status = "FAILED"
+        txn.failure_reason = result.failure_reason
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Failed to persist refund transaction result")
+        raise
+
+    return txn
+
 # Map incoming API type to internal DB constraint value
 _TYPE_MAP = {
     "PURCHASE": "PAYMENT",
