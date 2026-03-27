@@ -83,17 +83,17 @@ export default function LoginPage() {
             </button>
 
             <div className="mt-6 space-y-4 text-center text-base text-gray-800">
-              <button type="button" className="underline decoration-2 underline-offset-4">
+              <Link to="/forgot-password" className="underline decoration-2 underline-offset-4">
                 Forgot password?
-              </button>
-              <button type="button" className="block w-full underline decoration-2 underline-offset-4">
+              </Link>
+              <Link to="/resend-activation" className="block w-full underline decoration-2 underline-offset-4">
                 Resend email activation
-              </button>
+              </Link>
             </div>
 
             <p className="mt-6 text-center text-base text-gray-800">
               Don&apos;t have an account?{" "}
-              <Link to="/" className="underline decoration-2 underline-offset-4">
+              <Link to="/register" className="underline decoration-2 underline-offset-4">
                 Register now
               </Link>
             </p>

@@ -10,6 +10,9 @@ import EventDetailPage from "./pages/EventDetailPage";
 import SeatmapPage from "./pages/SeatmapPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResendActivationPage from "./pages/ResendActivationPage";
+import RegisterPage from "./pages/RegisterPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
@@ -37,6 +40,9 @@ export default function App() {
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/confirmation" element={<ConfirmationPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/resend-activation" element={<ResendActivationPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/admin/login" element={<AdminLoginPage />} />
 
               <Route
