@@ -5,25 +5,26 @@ import { useAuth } from "../context/AuthContext";
 import { customerLogin } from "../api";
 
 export default function LoginPage() {
-  const { login, isCustomer } = useAuth();
+  const { login, isCustomer, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (isCustomer) return <Navigate to="/" replace />;
+  if (isAdmin) return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const user = await customerLogin(email, password);
+      const user = await customerLogin(identifier, password);
       login(user);
-      navigate("/", { replace: true });
+      navigate(user.role === "admin" ? "/admin" : "/", { replace: true });
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
@@ -43,10 +44,10 @@ export default function LoginPage() {
             <div className="space-y-5">
               <div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email *"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Username/Email *"
                   className="w-full rounded-xl border border-gray-500 px-4 py-3.5 text-base text-gray-800 outline-none transition focus:border-[#800020]"
                   required
                 />
