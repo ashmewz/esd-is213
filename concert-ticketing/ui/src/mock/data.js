@@ -36,23 +36,29 @@ export const EVENTS = [
   },
 ];
 
-function generateSeats(eventId) {
+export const DEFAULT_SEAT_CONFIG = [
+  // VIP / PB1 — large centre floor (174×153 on map) → 10 rows × 22 seats
+  { tier: "VIP",  sectionNo: 1, rowCount: 10, seatsPerRow: 22, basePrice: 288 },
+  // CAT1 / PA1 & PC1 — medium floor (112×153 on map) → 8 rows × 14 seats
+  { tier: "CAT1", sectionNo: 2, rowCount: 8,  seatsPerRow: 14, basePrice: 188 },
+  { tier: "CAT1", sectionNo: 3, rowCount: 8,  seatsPerRow: 14, basePrice: 188 },
+  // CAT2 / Standing Pens — GA capacity pool → 6 rows × 20 spots
+  { tier: "CAT2", sectionNo: 4, rowCount: 6,  seatsPerRow: 20, basePrice: 128 },
+  { tier: "CAT2", sectionNo: 5, rowCount: 6,  seatsPerRow: 20, basePrice: 128 },
+  // CAT3 — numbered outer sections → 8 rows × 25 seats
+  { tier: "CAT3", sectionNo: 6, rowCount: 8,  seatsPerRow: 25, basePrice: 68  },
+  { tier: "CAT3", sectionNo: 7, rowCount: 8,  seatsPerRow: 25, basePrice: 68  },
+];
+
+const ROW_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+export function generateSeatsFromConfig(eventId, config) {
   const seats = [];
   let seatId = (eventId - 1) * 1000 + 1;
-
-  const config = [
-    { tier: "VIP",  sectionNo: 1, rows: ["A", "B"],           seatsPerRow: 10, basePrice: 288 },
-    { tier: "CAT1", sectionNo: 2, rows: ["A", "B", "C"],      seatsPerRow: 15, basePrice: 188 },
-    { tier: "CAT1", sectionNo: 3, rows: ["A", "B", "C"],      seatsPerRow: 15, basePrice: 188 },
-    { tier: "CAT2", sectionNo: 4, rows: ["A", "B", "C", "D"], seatsPerRow: 20, basePrice: 128 },
-    { tier: "CAT2", sectionNo: 5, rows: ["A", "B", "C", "D"], seatsPerRow: 20, basePrice: 128 },
-    { tier: "CAT3", sectionNo: 6, rows: ["A","B","C","D","E"],seatsPerRow: 25, basePrice: 68  },
-    { tier: "CAT3", sectionNo: 7, rows: ["A","B","C","D","E"],seatsPerRow: 25, basePrice: 68  },
-  ];
-
   const soldOffsets = new Set([2, 5, 9, 14, 22, 30, 35, 41, 55, 60, 72, 80, 95]);
 
-  config.forEach(({ tier, sectionNo, rows, seatsPerRow, basePrice }) => {
+  config.forEach(({ tier, sectionNo, rowCount, seatsPerRow, basePrice }) => {
+    const rows = ROW_LABELS.slice(0, Math.min(rowCount, 26));
     rows.forEach((rowLabel) => {
       for (let s = 1; s <= seatsPerRow; s++) {
         const offset = seatId - ((eventId - 1) * 1000 + 1);
@@ -72,6 +78,10 @@ function generateSeats(eventId) {
   });
 
   return seats;
+}
+
+export function generateSeats(eventId) {
+  return generateSeatsFromConfig(eventId, DEFAULT_SEAT_CONFIG);
 }
 
 export const SEATMAPS = {

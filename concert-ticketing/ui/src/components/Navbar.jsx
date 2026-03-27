@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingCart, User, X } from "lucide-react";
+import { ShoppingCart, User, X, LayoutDashboard, LogOut, LogIn } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 const NAV_LINKS = [
   { label: "Home",   to: "/" },
@@ -16,8 +17,14 @@ export default function Navbar() {
     cartTotal, timeLeft, FEE,
     showCartPopup, setShowCartPopup,
   } = useCart();
+  const { user, isAdmin, logout } = useAuth();
 
   const hasItems = cartItems.length > 0;
+
+  function handleLogout() {
+    logout();
+    navigate("/", { replace: true });
+  }
 
   return (
     <header className="relative">
@@ -124,9 +131,39 @@ export default function Navbar() {
             )}
           </div>
 
-          <button className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition">
-            <User size={18} className="text-gray-600" />
-          </button>
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate("/admin")}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-[#800020] transition px-2 py-1"
+              >
+                <LayoutDashboard size={15} /> Dashboard
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-10 h-10 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
+                title="Log out"
+              >
+                <LogOut size={16} className="text-gray-600" />
+              </button>
+            </div>
+          ) : user ? (
+            <button
+              onClick={handleLogout}
+              className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
+              title="Log out"
+            >
+              <LogOut size={18} className="text-gray-600" />
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("/login")}
+              className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
+              title="Admin login"
+            >
+              <User size={18} className="text-gray-600" />
+            </button>
+          )}
         </div>
       </div>
 

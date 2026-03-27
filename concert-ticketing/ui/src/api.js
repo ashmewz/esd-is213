@@ -8,6 +8,18 @@ export {
   createBooking,
   createSwapRequest,
   cancelSwapRequest,
+  // Admin
+  adminLogin,
+  adminGetEvents,
+  adminCreateEvent,
+  adminUpdateEvent,
+  adminDeleteEvent,
+  adminGetTierPrices,
+  adminUpdateTierPrices,
+  adminGetSectionConfigs,
+  adminSetSectionConfigs,
+  adminGetVisualSections,
+  adminSetVisualSections,
 } from "./mock/mockApi";
 
 // ── Real API (uncomment and remove mock exports above when backend is ready) ──
