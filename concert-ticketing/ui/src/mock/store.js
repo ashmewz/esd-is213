@@ -18,6 +18,8 @@ let seatmaps = Object.fromEntries(
 );
 
 let nextEventId = Math.max(...events.map((e) => e.eventId)) + 1;
+const ORDER_STORAGE_KEY = "stagepass_orders";
+const SWAP_STORAGE_KEY = "stagepass_swap_requests";
 
 // Tier prices: eventId → { VIP: n, CAT1: n, ... }
 let tierPrices = {};
@@ -38,6 +40,44 @@ for (const ev of events) {
 let visualSections = {};
 for (const ev of events) {
   visualSections[ev.eventId] = DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false }));
+}
+
+function loadOrders() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(ORDER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOrders(nextOrders) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(nextOrders));
+  } catch {
+    // ignore storage failures in mock mode
+  }
+}
+
+function loadSwapRequests() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SWAP_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSwapRequests(nextRequests) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SWAP_STORAGE_KEY, JSON.stringify(nextRequests));
+  } catch {
+    // ignore storage failures in mock mode
+  }
 }
 
 // ── Getters ────────────────────────────────────────────────────────────────
@@ -65,9 +105,68 @@ export function storeGetVisualSections(eventId) {
   return visualSections[Number(eventId)] ?? DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false }));
 }
 
+export function storeGetOrdersByUser(userId) {
+  return loadOrders()
+    .filter((order) => Number(order.userId) === Number(userId))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export function storeSetVisualSections(eventId, sections) {
   visualSections[Number(eventId)] = sections;
   return sections;
+}
+
+export function storeCreateOrder(order) {
+  const orders = loadOrders();
+  const nextOrders = [order, ...orders];
+  saveOrders(nextOrders);
+  return order;
+}
+
+export function storeUpdateOrder(orderId, updates) {
+  const orders = loadOrders();
+  const nextOrders = orders.map((order) =>
+    String(order.orderId) === String(orderId)
+      ? { ...order, ...updates, updatedAt: new Date().toISOString() }
+      : order
+  );
+  saveOrders(nextOrders);
+  return nextOrders.find((order) => String(order.orderId) === String(orderId)) ?? null;
+}
+
+export function storeGetSwapRequestsByUser(userId) {
+  return loadSwapRequests()
+    .filter((request) => Number(request.userId) === Number(userId))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function storeCreateSwapRequest(request) {
+  const requests = loadSwapRequests();
+  const nextRequests = [request, ...requests];
+  saveSwapRequests(nextRequests);
+  return request;
+}
+
+export function storeCancelSwapRequest(requestId) {
+  const requests = loadSwapRequests();
+  const nextRequests = requests.map((request) =>
+    String(request.requestId) === String(requestId)
+      ? { ...request, swapStatus: "cancelled", updatedAt: new Date().toISOString() }
+      : request
+  );
+  saveSwapRequests(nextRequests);
+  return nextRequests.find((request) => String(request.requestId) === String(requestId)) ?? null;
+}
+
+export function storeUpdateSwapRequest(requestId, updates) {
+  const requests = loadSwapRequests();
+  const nextRequests = requests.map((request) =>
+    String(request.requestId) === String(requestId)
+      ? { ...request, ...updates, updatedAt: new Date().toISOString() }
+      : request
+  );
+  saveSwapRequests(nextRequests);
+  return nextRequests.find((request) => String(request.requestId) === String(requestId)) ?? null;
 }
 
 // ── Admin CRUD ─────────────────────────────────────────────────────────────
