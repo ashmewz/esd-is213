@@ -1,38 +1,32 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Clock } from "lucide-react";
 import { EVENTS } from "../mock/data";
 
 function FeaturedEventCard({ event, onClick }) {
+  const hasTickets = event.status === "active";
   return (
     <div
-      className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
+      className="flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer outline outline-1 outline-gray-300 hover:outline-[#800020] hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
       onClick={onClick}
     >
-      <div className="h-60 overflow-hidden bg-gray-100">
+      <div className="aspect-[3/2] overflow-hidden bg-gray-100">
         {event.imageUrl ? (
           <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl text-gray-300">🎵</div>
+          <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">🎵</div>
         )}
       </div>
-      <div className="p-5 flex flex-col gap-2">
-        <h3 className="font-bold text-gray-900 text-base leading-snug">{event.name}</h3>
-        <div className="flex items-center gap-2 text-gray-500 text-sm">
-          <Calendar size={14} className="shrink-0" />
-          <span>{event.date}</span>
-        </div>
-        {event.dates?.[0]?.times?.[0] && (
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
-            <Clock size={14} className="shrink-0" />
-            <span>{event.dates[0].times[0]}</span>
-          </div>
-        )}
-        {event.venueName && (
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
-            <MapPin size={14} className="shrink-0" />
-            <span className="underline underline-offset-2">{event.venueName}</span>
-          </div>
-        )}
+      <div className="p-3.5 flex flex-col gap-1 flex-1">
+        <span className="inline-flex w-fit items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-600 text-white">
+          Concert
+        </span>
+        <h3 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h3>
+        <p className="text-xs text-gray-500">{event.date}</p>
+        <p className="text-xs text-gray-500">{event.venueName}</p>
+        <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
+          {hasTickets
+            ? event.minPrice != null ? `From S$${event.minPrice}` : "Tickets Available"
+            : "No Tickets Available"}
+        </p>
       </div>
     </div>
   );
@@ -91,15 +85,15 @@ export default function HomePage() {
       </section>
 
       {/* Featured Events */}
-      <section className="bg-white py-20 px-12 lg:px-24">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Next Big Events</h2>
-          <p className="text-gray-500 text-base max-w-xl mx-auto">
-            Discover the most exciting upcoming events and secure your tickets now for unforgettable experiences!
+      <section className="bg-white py-16 px-8 lg:px-16">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Next Big Events</h2>
+          <p className="text-gray-500 text-sm max-w-xl mx-auto">
+            Discover the most exciting upcoming events and secure your tickets now.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {EVENTS.map((event) => (
             <FeaturedEventCard
               key={event.eventId}

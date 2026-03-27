@@ -162,9 +162,9 @@ function EventCard({ event, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
+      className="flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer outline outline-1 outline-gray-300 hover:outline-[#800020] hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
     >
-      <div className="bg-gray-100 aspect-[4/3] overflow-hidden">
+      <div className="bg-gray-100 aspect-[3/2] overflow-hidden">
         {event.imageUrl ? (
           <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
         ) : (
@@ -172,14 +172,14 @@ function EventCard({ event, onClick }) {
         )}
       </div>
 
-      <div className="p-4 flex flex-col gap-1.5 flex-1">
-        <span className="inline-flex w-fit items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white">
+      <div className="p-3 flex flex-col gap-1 flex-1">
+        <span className="inline-flex w-fit items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-600 text-white">
           Concert
         </span>
-        <h2 className="font-bold text-gray-900 text-base leading-snug mt-1">{event.name}</h2>
-        <p className="text-sm text-gray-500">{event.date}</p>
-        <p className="text-sm text-gray-500">{event.venueName}</p>
-        <p className={`text-sm font-medium mt-1 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
+        <h2 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h2>
+        <p className="text-xs text-gray-500">{event.date}</p>
+        <p className="text-xs text-gray-500">{event.venueName}</p>
+        <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets
             ? event.minPrice != null ? `From S$${event.minPrice}` : "Tickets Available"
             : "No Tickets Available"}
@@ -285,7 +285,7 @@ export default function EventsPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {filtered.map((event) => (
           <EventCard
             key={event.eventId}

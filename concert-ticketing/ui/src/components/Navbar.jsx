@@ -54,95 +54,99 @@ export default function Navbar() {
 
         {/* Cart + User icons (+ timer/checkout when cart has items) */}
         <div className="flex gap-3 items-center">
-          {hasItems && (
+          {!isAdmin && (
             <>
-              <span className="text-sm text-gray-600">
-                Time left: <span className="font-semibold text-gray-800">{timeLeft}</span>
-              </span>
-              <button
-                onClick={() => isAuthenticated ? navigate("/checkout") : setShowLoginModal(true)}
-                className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
-              >
-                Checkout ${cartTotal}.00
-              </button>
+              {hasItems && (
+                <>
+                  <span className="text-sm text-gray-600">
+                    Time left: <span className="font-semibold text-gray-800">{timeLeft}</span>
+                  </span>
+                  <button
+                    onClick={() => isAuthenticated ? navigate("/checkout") : setShowLoginModal(true)}
+                    className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
+                  >
+                    Checkout ${cartTotal}.00
+                  </button>
+                </>
+              )}
+              {/* Cart button with badge + popup */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowCartPopup((v) => !v)}
+                  className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
+                >
+                  <ShoppingCart size={18} className="text-gray-600" />
+                </button>
+                {hasItems && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#800020] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {cartItems.length}
+                  </span>
+                )}
+
+                {/* Cart popup anchored below cart button */}
+                {showCartPopup && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowCartPopup(false)} />
+                    <div className="absolute top-full right-0 z-50 bg-white shadow-2xl rounded-xl w-80 border overflow-hidden mt-3">
+                      <div className="p-5">
+                        <button
+                          onClick={() => setShowCartPopup(false)}
+                          className="text-sm font-medium text-gray-700 hover:text-[#800020] underline block mb-3"
+                        >
+                          Continue shopping
+                        </button>
+                        <hr className="mb-3" />
+                        <p className="text-sm text-gray-600 mb-3">The following items are in your cart.</p>
+
+                        {cartItems.map(({ seat, event, date, time }) => (
+                          <div key={seat.seatId} className="border rounded-lg p-3 mb-2">
+                            <div className="flex justify-between items-start mb-1">
+                              <p className="font-semibold text-sm text-gray-800 leading-tight">{event.name}</p>
+                              <button
+                                onClick={() => removeFromCart(seat.seatId)}
+                                className="text-gray-400 hover:text-red-500 ml-2 shrink-0"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-2">
+                              {date}{time && `, ${time}`}
+                            </p>
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>1 x Adult (${seat.basePrice})</span>
+                              <span>${seat.basePrice}.00</span>
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className="flex justify-between text-sm text-gray-500 mt-3">
+                          <span>Fees & Charges:</span>
+                          <span>${cartItems.length * FEE}.00</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-gray-800 mt-1 mb-4">
+                          <span>Cart Subtotal:</span>
+                          <span>${cartTotal}.00</span>
+                        </div>
+
+                        <button
+                          onClick={() => { setShowCartPopup(false); isAuthenticated ? navigate("/checkout") : setShowLoginModal(true); }}
+                          className="w-full py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition"
+                        >
+                          Go to Checkout
+                        </button>
+                        <button
+                          onClick={clearCart}
+                          className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700 underline"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           )}
-          {/* Cart button with badge + popup */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCartPopup((v) => !v)}
-              className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
-            >
-              <ShoppingCart size={18} className="text-gray-600" />
-            </button>
-            {hasItems && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#800020] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {cartItems.length}
-              </span>
-            )}
-
-            {/* Cart popup anchored below cart button */}
-            {showCartPopup && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowCartPopup(false)} />
-                <div className="absolute top-full right-0 z-50 bg-white shadow-2xl rounded-xl w-80 border overflow-hidden mt-3">
-                  <div className="p-5">
-                    <button
-                      onClick={() => setShowCartPopup(false)}
-                      className="text-sm font-medium text-gray-700 hover:text-[#800020] underline block mb-3"
-                    >
-                      Continue shopping
-                    </button>
-                    <hr className="mb-3" />
-                    <p className="text-sm text-gray-600 mb-3">The following items are in your cart.</p>
-
-                    {cartItems.map(({ seat, event, date, time }) => (
-                      <div key={seat.seatId} className="border rounded-lg p-3 mb-2">
-                        <div className="flex justify-between items-start mb-1">
-                          <p className="font-semibold text-sm text-gray-800 leading-tight">{event.name}</p>
-                          <button
-                            onClick={() => removeFromCart(seat.seatId)}
-                            className="text-gray-400 hover:text-red-500 ml-2 shrink-0"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-400 mb-2">
-                          {date}{time && `, ${time}`}
-                        </p>
-                        <div className="flex justify-between text-xs text-gray-600">
-                          <span>1 x Adult (${seat.basePrice})</span>
-                          <span>${seat.basePrice}.00</span>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="flex justify-between text-sm text-gray-500 mt-3">
-                      <span>Fees & Charges:</span>
-                      <span>${cartItems.length * FEE}.00</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-gray-800 mt-1 mb-4">
-                      <span>Cart Subtotal:</span>
-                      <span>${cartTotal}.00</span>
-                    </div>
-
-                    <button
-                      onClick={() => { setShowCartPopup(false); isAuthenticated ? navigate("/checkout") : setShowLoginModal(true); }}
-                      className="w-full py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition"
-                    >
-                      Go to Checkout
-                    </button>
-                    <button
-                      onClick={clearCart}
-                      className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700 underline"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
 
           {isCustomer && (
             <div className="relative">

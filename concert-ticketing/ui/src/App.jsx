@@ -13,7 +13,6 @@ import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResendActivationPage from "./pages/ResendActivationPage";
 import RegisterPage from "./pages/RegisterPage";
-import AdminLoginPage from "./pages/AdminLoginPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
 import AccountDetailsPage from "./pages/AccountDetailsPage";
@@ -43,7 +42,6 @@ export default function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/resend-activation" element={<ResendActivationPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/admin/login" element={<AdminLoginPage />} />
 
               <Route
                 path="/tickets"

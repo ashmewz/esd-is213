@@ -3,8 +3,8 @@ import { LayoutDashboard, CalendarDays, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 const NAV = [
-  { to: "/admin",        label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/admin/events", label: "Events",    icon: CalendarDays },
+  { to: "/admin",   label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/events",  label: "Events",    icon: CalendarDays },
 ];
 
 export default function AdminLayout() {

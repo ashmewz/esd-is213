@@ -90,30 +90,35 @@ export default function AdminDashboard() {
       {filtered.length === 0 ? (
         <div className="text-center text-gray-400 py-20 text-sm">No events found.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((event) => (
-            <div key={event.eventId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={event.eventId} className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]">
               {/* Image */}
-              <div className="h-56 bg-gray-100 flex items-center justify-center overflow-hidden">
+              <div className="bg-gray-100 aspect-[3/2] overflow-hidden">
                 {event.imageUrl ? (
                   <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-4xl">🎵</span>
+                  <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">🎵</div>
                 )}
               </div>
 
-              <div className="p-4">
-                {/* Status badge */}
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${STATUS_COLORS[event.status] ?? STATUS_COLORS.finished}`}>
-                  {STATUS_LABELS[event.status] ?? event.status}
-                </span>
+              <div className="p-4 flex flex-col gap-1.5 flex-1">
+                {/* Category + status row */}
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white">
+                    Concert
+                  </span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${STATUS_COLORS[event.status] ?? STATUS_COLORS.finished}`}>
+                    {STATUS_LABELS[event.status] ?? event.status}
+                  </span>
+                </div>
 
-                <h2 className="font-bold text-gray-900 mt-2 leading-tight text-sm line-clamp-2">{event.name}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{event.venueName}</p>
-                <p className="text-xs text-gray-400">{event.date}</p>
+                <h2 className="font-bold text-gray-900 text-sm leading-snug mt-1 line-clamp-2">{event.name}</h2>
+                <p className="text-xs text-gray-500">{event.date}</p>
+                <p className="text-xs text-gray-500">{event.venueName}</p>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-2 mt-auto pt-3">
                   <button
                     onClick={() => navigate(`/admin/events/${event.eventId}/edit`)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
