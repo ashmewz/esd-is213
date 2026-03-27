@@ -34,7 +34,7 @@ function EventCard({ event, onClick }) {
       <div className="px-4 pb-4">
         <button
           onClick={onClick}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2 rounded transition"
+          className="w-full bg-[#800020] hover:bg-[#6a001a] text-white text-sm font-medium py-2 rounded transition"
         >
           Buy Now
         </button>

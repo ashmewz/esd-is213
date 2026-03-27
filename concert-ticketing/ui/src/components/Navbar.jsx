@@ -26,10 +26,10 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex flex-col leading-tight">
           <span className="text-5xl font-bold">
-            <span className="text-orange-500">Ticket</span>
-            <span className="text-gray-800">App</span>
+            <span className="text-[#800020]">Stage</span>
+            <span className="text-gray-800">Pass</span>
           </span>
-          <span className="text-s py-2 text-gray-500 tracking-wide">Box Office Online</span>
+          <span className="text-s py-2 text-gray-500 tracking-wide">Live Events, Simplified</span>
         </Link>
 
         {/* Cart + User icons (+ timer/checkout when cart has items) */}
@@ -41,7 +41,7 @@ export default function Navbar() {
               </span>
               <button
                 onClick={() => navigate("/checkout")}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
+                className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
               >
                 Checkout ${cartTotal}.00
               </button>
@@ -51,12 +51,12 @@ export default function Navbar() {
           <div className="relative">
             <button
               onClick={() => setShowCartPopup((v) => !v)}
-              className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-orange-500 transition"
+              className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition"
             >
               <ShoppingCart size={18} className="text-gray-600" />
             </button>
             {hasItems && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#800020] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {cartItems.length}
               </span>
             )}
@@ -69,7 +69,7 @@ export default function Navbar() {
                   <div className="p-5">
                     <button
                       onClick={() => setShowCartPopup(false)}
-                      className="text-sm font-medium text-gray-700 hover:text-orange-500 underline block mb-3"
+                      className="text-sm font-medium text-gray-700 hover:text-[#800020] underline block mb-3"
                     >
                       Continue shopping
                     </button>
@@ -108,7 +108,7 @@ export default function Navbar() {
 
                     <button
                       onClick={() => { setShowCartPopup(false); navigate("/checkout"); }}
-                      className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition"
+                      className="w-full py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition"
                     >
                       Go to Checkout
                     </button>
@@ -124,7 +124,7 @@ export default function Navbar() {
             )}
           </div>
 
-          <button className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-orange-500 transition">
+          <button className="w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:border-[#800020] transition">
             <User size={18} className="text-gray-600" />
           </button>
         </div>
@@ -140,8 +140,8 @@ export default function Navbar() {
               to={to}
               className={`py-4 px-8 text-sm font-medium border-b-2 transition ${
                 active
-                  ? "border-orange-500 text-orange-500"
-                  : "border-transparent text-gray-700 hover:text-orange-500"
+                  ? "border-[#800020] text-[#800020]"
+                  : "border-transparent text-gray-700 hover:text-[#800020]"
               }`}
             >
               {label}

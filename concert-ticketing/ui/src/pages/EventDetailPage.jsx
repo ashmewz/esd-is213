@@ -38,13 +38,13 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
     <div className="border border-gray-200 rounded-lg overflow-hidden w-full max-w-md mx-auto">
       {/* Month header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <button onClick={prevMonth} className="p-1 text-gray-500 hover:text-orange-500 transition">
+        <button onClick={prevMonth} className="p-1 text-gray-500 hover:text-[#800020] transition">
           <ChevronLeft size={18} />
         </button>
         <span className="font-semibold text-gray-800">
           {MONTHS[month]} {year}
         </span>
-        <button onClick={nextMonth} className="p-1 text-gray-500 hover:text-orange-500 transition">
+        <button onClick={nextMonth} className="p-1 text-gray-500 hover:text-[#800020] transition">
           <ChevronRight size={18} />
         </button>
       </div>
@@ -78,9 +78,9 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
                 onClick={() => avail && onSelectDate(dateId)}
                 className={`w-9 h-9 rounded-full text-sm font-medium transition
                   ${selected
-                    ? "bg-orange-500 text-white"
+                    ? "bg-[#800020] text-white"
                     : avail
-                    ? "border-2 border-orange-400 text-gray-800 hover:bg-orange-50"
+                    ? "border-2 border-[#6a001a] text-gray-800 hover:bg-[#fdf0f8]"
                     : isToday
                     ? "border-2 border-gray-800 text-gray-800"
                     : "text-gray-400 cursor-default"
@@ -178,7 +178,7 @@ export default function EventDetailPage() {
       <div className="px-6 py-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-gray-600 hover:text-orange-500 transition text-sm font-medium"
+          className="flex items-center gap-1 text-gray-600 hover:text-[#800020] transition text-sm font-medium"
         >
           <ChevronLeft size={16} /> Back
         </button>
@@ -202,8 +202,8 @@ export default function EventDetailPage() {
       {/* Event info */}
       <div className="text-center px-6 py-8 border-b border-gray-100">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{event.name}</h1>
-        <p className="text-orange-500 font-medium">{event.venueName}</p>
-        <p className="text-orange-500 text-sm mt-0.5">{event.date}</p>
+        <p className="text-[#800020] font-medium">{event.venueName}</p>
+        <p className="text-[#800020] text-sm mt-0.5">{event.date}</p>
       </div>
 
       {/* Date picker */}
@@ -239,7 +239,7 @@ export default function EventDetailPage() {
                       onClick={() => setSelectedTime(t)}
                       className={`w-full py-3 rounded-lg text-sm font-semibold transition ${
                         active
-                          ? "bg-orange-500 text-white"
+                          ? "bg-[#800020] text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
                     >
@@ -261,7 +261,7 @@ export default function EventDetailPage() {
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleSelectSeats}
-                className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition"
+                className="w-full py-4 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition"
               >
                 Choose My Own Seats
               </button>
@@ -304,12 +304,12 @@ export default function EventDetailPage() {
                 <p className="font-bold text-gray-800">{autoPicked.seatNo}</p>
               </div>
             </div>
-            <p className="text-center text-orange-500 font-bold text-xl mb-5">
+            <p className="text-center text-[#800020] font-bold text-xl mb-5">
               ${autoPicked.basePrice}
             </p>
             <button
               onClick={handleConfirmAutoPick}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition mb-2"
+              className="w-full py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-xl transition mb-2"
             >
               Continue to Checkout →
             </button>
@@ -354,13 +354,13 @@ function CalendarInner({ eventDates, selectedDateId, onSelectDate, defaultYear, 
     <>
       {/* Month header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <button onClick={prevMonth} className="p-1 text-gray-500 hover:text-orange-500 transition">
+        <button onClick={prevMonth} className="p-1 text-gray-500 hover:text-[#800020] transition">
           <ChevronLeft size={18} />
         </button>
         <span className="font-semibold text-gray-800">
           {MONTHS[month]} {year}
         </span>
-        <button onClick={nextMonth} className="p-1 text-gray-500 hover:text-orange-500 transition">
+        <button onClick={nextMonth} className="p-1 text-gray-500 hover:text-[#800020] transition">
           <ChevronRight size={18} />
         </button>
       </div>
@@ -394,9 +394,9 @@ function CalendarInner({ eventDates, selectedDateId, onSelectDate, defaultYear, 
                 onClick={() => avail && onSelectDate(dateId)}
                 className={`w-9 h-9 rounded-full text-sm font-medium transition
                   ${selected
-                    ? "bg-orange-500 text-white"
+                    ? "bg-[#800020] text-white"
                     : avail
-                    ? "border-2 border-orange-400 text-gray-800 hover:bg-orange-50"
+                    ? "border-2 border-[#6a001a] text-gray-800 hover:bg-[#fdf0f8]"
                     : isToday
                     ? "border-2 border-gray-800 text-gray-800"
                     : "text-gray-400 cursor-default"

@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
+import HomePage from "./pages/HomePage";
 import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import SeatmapPage from "./pages/SeatmapPage";
@@ -13,7 +14,7 @@ export default function App() {
         <div className="min-h-screen bg-white text-gray-900">
           <Navbar />
           <Routes>
-            <Route path="/" element={<Navigate to="/events" replace />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/events/:eventId/seats" element={<SeatmapPage />} />

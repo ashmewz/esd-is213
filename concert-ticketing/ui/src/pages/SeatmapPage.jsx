@@ -5,7 +5,7 @@ import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X } from "lucide
 import { useCart } from "../context/CartContext";
 
 const TIERS = {
-  VIP:  { color: "bg-orange-400", ring: "ring-orange-600", dot: "bg-orange-400", label: "VIP",   price: 288 },
+  VIP:  { color: "bg-[#6a001a]", ring: "ring-[#6a001a]", dot: "bg-[#6a001a]", label: "VIP",   price: 288 },
   CAT1: { color: "bg-teal-400",   ring: "ring-teal-600",   dot: "bg-teal-400",   label: "CAT 1", price: 188 },
   CAT2: { color: "bg-violet-400", ring: "ring-violet-600", dot: "bg-violet-400", label: "CAT 2", price: 128 },
   CAT3: { color: "bg-blue-400",   ring: "ring-blue-600",   dot: "bg-blue-400",   label: "CAT 3", price: 68  },
@@ -117,7 +117,7 @@ export default function SeatmapPage() {
       <div className="bg-gray-50 border-b px-6 py-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-orange-500 transition mb-2"
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#800020] transition mb-2"
         >
           <ChevronLeft size={15} /> Back
         </button>
@@ -135,7 +135,7 @@ export default function SeatmapPage() {
             <span className="text-sm font-semibold text-gray-700">Filter price</span>
             <button
               onClick={() => setVisibleTiers(new Set(Object.keys(TIERS)))}
-              className="text-gray-400 hover:text-orange-500 transition"
+              className="text-gray-400 hover:text-[#800020] transition"
               title="Reset"
             >
               <RefreshCw size={14} />
@@ -149,7 +149,7 @@ export default function SeatmapPage() {
                   type="checkbox"
                   checked={visibleTiers.has(tier)}
                   onChange={() => toggleTier(tier)}
-                  className="accent-orange-500 w-4 h-4"
+                  className="accent-[#800020] w-4 h-4"
                 />
                 <span className={`w-4 h-4 rounded-full ${cfg.dot} shrink-0`} />
                 <span className="text-sm text-gray-700 flex-1">${cfg.price}</span>
@@ -158,8 +158,8 @@ export default function SeatmapPage() {
           </div>
 
           <div className="flex gap-3 text-xs mb-6">
-            <button onClick={() => setVisibleTiers(new Set(Object.keys(TIERS)))} className="text-orange-500 hover:underline">Select All</button>
-            <button onClick={() => setVisibleTiers(new Set())} className="text-orange-500 hover:underline">Clear All</button>
+            <button onClick={() => setVisibleTiers(new Set(Object.keys(TIERS)))} className="text-[#800020] hover:underline">Select All</button>
+            <button onClick={() => setVisibleTiers(new Set())} className="text-[#800020] hover:underline">Clear All</button>
           </div>
 
           <div className="border-t pt-4 mb-4">
@@ -184,7 +184,7 @@ export default function SeatmapPage() {
               type="checkbox"
               checked={showNumbers}
               onChange={() => setShowNumbers((v) => !v)}
-              className="accent-orange-500 w-4 h-4"
+              className="accent-[#800020] w-4 h-4"
             />
             <span className="text-xs text-gray-600">Display Seat Numbering</span>
           </label>
@@ -305,7 +305,7 @@ export default function SeatmapPage() {
                 <button
                   onClick={handleModalContinue}
                   disabled={selectedSeats.length === 0}
-                  className="px-8 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold rounded-lg transition"
+                  className="px-8 py-2.5 bg-[#800020] hover:bg-[#6a001a] disabled:opacity-40 text-white font-semibold rounded-lg transition"
                 >
                   Continue
                 </button>
@@ -320,7 +320,7 @@ export default function SeatmapPage() {
         <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-end p-4">
           <button
             onClick={() => setShowTicketModal(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-4 rounded-lg shadow-xl transition text-sm"
+            className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-8 py-4 rounded-lg shadow-xl transition text-sm"
           >
             Click Here to Select Ticket Types
           </button>
@@ -372,7 +372,7 @@ export default function SeatmapPage() {
           <div className="flex items-center justify-between px-6 py-3 bg-white border-t">
             <button
               onClick={() => navigate(-1)}
-              className="text-sm text-gray-600 hover:text-orange-500 underline"
+              className="text-sm text-gray-600 hover:text-[#800020] underline"
             >
               Continue shopping
             </button>
@@ -382,7 +382,7 @@ export default function SeatmapPage() {
               </button>
               <button
                 onClick={handleAddToCart}
-                className="px-8 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition text-sm"
+                className="px-8 py-2.5 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition text-sm"
               >
                 Add to cart
               </button>

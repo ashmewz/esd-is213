@@ -46,7 +46,7 @@ export default function CheckoutPage() {
 
   const inputClass = (name) =>
     `w-full border-b pb-1 pt-2 outline-none text-sm text-gray-800 bg-transparent transition
-    ${errors[name] ? "border-red-400 focus:border-red-500" : "border-gray-300 focus:border-orange-500"}`;
+    ${errors[name] ? "border-red-400 focus:border-red-500" : "border-gray-300 focus:border-[#800020]"}`;
 
   const labelClass = "block text-xs text-gray-400 mb-0.5";
 
@@ -92,7 +92,7 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <label className={labelClass}>Mobile <span className="text-red-500">*</span></label>
-                      <div className={`flex items-center border-b pb-1 pt-2 gap-2 transition ${errors.mobile ? "border-red-400" : "border-gray-300 focus-within:border-orange-500"}`}>
+                      <div className={`flex items-center border-b pb-1 pt-2 gap-2 transition ${errors.mobile ? "border-red-400" : "border-gray-300 focus-within:border-[#800020]"}`}>
                         <span className="text-sm text-gray-600 shrink-0">🇸🇬 +65</span>
                         <input
                           name="mobile" value={form.mobile} onChange={handleChange}
@@ -156,11 +156,11 @@ export default function CheckoutPage() {
                     <div className="flex">
                       <button
                         onClick={() => setSameAddress(true)}
-                        className={`px-5 py-2 text-sm font-bold transition ${sameAddress ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"}`}
+                        className={`px-5 py-2 text-sm font-bold transition ${sameAddress ? "bg-[#800020] text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"}`}
                       >YES</button>
                       <button
                         onClick={() => setSameAddress(false)}
-                        className={`px-5 py-2 text-sm font-bold transition ${!sameAddress ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"}`}
+                        className={`px-5 py-2 text-sm font-bold transition ${!sameAddress ? "bg-[#800020] text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"}`}
                       >NO</button>
                     </div>
                   </div>
@@ -169,7 +169,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-center mb-2">
                     <button
                       onClick={handleNextStep1}
-                      className="px-16 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded transition flex items-center gap-2"
+                      className="px-16 py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded transition flex items-center gap-2"
                     >
                       Next <ChevronRight size={16} />
                     </button>
@@ -211,18 +211,18 @@ export default function CheckoutPage() {
                     onClick={() => setSelectedDelivery(selectedDelivery === "eticket" ? null : "eticket")}
                     className={`font-semibold px-6 py-3 rounded mb-5 text-sm border-2 transition
                       ${selectedDelivery === "eticket"
-                        ? "bg-orange-500 border-orange-500 text-white"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-orange-400"}`}
+                        ? "bg-[#800020] border-[#800020] text-white"
+                        : "bg-white border-gray-300 text-gray-700 hover:border-[#6a001a]"}`}
                   >
                     eTicket – $0.00
                   </button>
-                  <div className="border border-orange-400 rounded-lg p-5 text-sm text-gray-700 mb-8">
+                  <div className="border border-[#6a001a] rounded-lg p-5 text-sm text-gray-700 mb-8">
                     Your tickets/items will be sent attached to your confirmation as a PDF to your nominated email address.
                   </div>
                   <div className="flex justify-center">
                     <button
                       onClick={handleNextStep2}
-                      className="px-16 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded transition flex items-center gap-2"
+                      className="px-16 py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded transition flex items-center gap-2"
                     >
                       Next <ChevronRight size={16} />
                     </button>
@@ -263,28 +263,28 @@ export default function CheckoutPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Card Number</label>
-                        <input placeholder="1234 5678 9012 3456" className="w-full border-b border-gray-300 focus:border-orange-500 outline-none py-2 text-sm" />
+                        <input placeholder="1234 5678 9012 3456" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Expiry (MM/YY)</label>
-                          <input placeholder="MM/YY" className="w-full border-b border-gray-300 focus:border-orange-500 outline-none py-2 text-sm" />
+                          <input placeholder="MM/YY" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
                         </div>
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">CVV</label>
-                          <input placeholder="123" className="w-full border-b border-gray-300 focus:border-orange-500 outline-none py-2 text-sm" />
+                          <input placeholder="123" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Name on Card</label>
-                        <input className="w-full border-b border-gray-300 focus:border-orange-500 outline-none py-2 text-sm" />
+                        <input className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-center">
                     <button
                       onClick={handleNextStep3}
-                      className="px-16 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded transition flex items-center gap-2"
+                      className="px-16 py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded transition flex items-center gap-2"
                     >
                       Place Order <ChevronRight size={16} />
                     </button>
@@ -297,7 +297,7 @@ export default function CheckoutPage() {
             <div className="flex justify-between items-center mb-6">
               <button
                 onClick={() => navigate(-1)}
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-orange-500 transition"
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-[#800020] transition"
               >
                 <ChevronLeft size={14} /> Continue shopping
               </button>
@@ -336,7 +336,7 @@ export default function CheckoutPage() {
                     <div className="text-right mb-2">
                       <span
                         onClick={() => navigate(`/events/${event.eventId}`)}
-                        className="text-xs text-orange-500 underline cursor-pointer hover:text-orange-600"
+                        className="text-xs text-[#800020] underline cursor-pointer hover:text-[#6a001a]"
                       >(Add Ticket)</span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-700 mb-1">
