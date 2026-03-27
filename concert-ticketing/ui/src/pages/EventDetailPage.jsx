@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
 import { getEvent, getSeatmap } from "../api";
+import { useCart } from "../context/CartContext";
 
 // ── Calendar helpers ──────────────────────────────────────────────────────────
 const DAYS   = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -114,6 +115,7 @@ function TimeSlots({ times }) {
 export default function EventDetailPage() {
   const { eventId } = useParams();
   const navigate    = useNavigate();
+  const { addToCart } = useCart();
 
   const [event,        setEvent]        = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -158,9 +160,9 @@ export default function EventDetailPage() {
   }
 
   function handleConfirmAutoPick() {
-    navigate(`/checkout/${eventId}/${autoPicked.seatId}`, {
-      state: { seat: autoPicked, event, date: selectedDate, time: selectedTime },
-    });
+    addToCart([{ seat: autoPicked, event, date: selectedDate, time: selectedTime }]);
+    setAutoPicked(null);
+    navigate("/checkout");
   }
 
   if (loading) {

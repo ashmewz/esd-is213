@@ -2,16 +2,56 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ChevronDown, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { createBooking } from "../api";
+import { useAuth } from "../context/AuthContext";
+
+const BOOKING_ERROR_COPY = {
+  SEAT_UNAVAILABLE: {
+    title: "Seat no longer available",
+    message: "One of your selected seats was just taken by another customer. Please return to the seat map and choose a different seat.",
+  },
+  HOLD_EXPIRED: {
+    title: "Reservation expired",
+    message: "Your checkout session took too long and the temporary seat hold expired. Please reselect your tickets and try again.",
+  },
+  PAYMENT_FAILED: {
+    title: "Payment could not be processed",
+    message: "Your bank or card provider did not approve the charge. Please check your card details or try another card.",
+  },
+  REFUND_REQUIRED: {
+    title: "Payment captured but booking could not be completed",
+    message: "We have started a refund for this failed booking attempt. Please wait for confirmation before trying again.",
+  },
+  UNKNOWN_ERROR: {
+    title: "We could not place your order",
+    message: "Something unexpected happened while processing your booking. Please review your details and try again.",
+  },
+};
+
+function getBookingErrorContent(error) {
+  const code = error?.code || "UNKNOWN_ERROR";
+  return BOOKING_ERROR_COPY[code] || BOOKING_ERROR_COPY.UNKNOWN_ERROR;
+}
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cartItems, cartTotal, FEE, removeFromCart, clearCart } = useCart();
+  const { currentUserId } = useAuth();
 
   const [openStep,        setOpenStep]        = useState(1);
   const [completedSteps,  setCompletedSteps]  = useState(new Set());
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [sameAddress,     setSameAddress]     = useState(true);
   const [errors,         setErrors]         = useState({});
+  const [paymentErrors,  setPaymentErrors]  = useState({});
+  const [submitError,    setSubmitError]    = useState("");
+  const [submitting,     setSubmitting]     = useState(false);
+  const [payment, setPayment] = useState({
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
+    nameOnCard: "",
+  });
   const [form, setForm] = useState({
     firstName: "", lastName: "", mobile: "", email: "", confirmEmail: "",
     addressLine1: "", addressLine2: "", city: "", postalCode: "",
@@ -21,6 +61,35 @@ export default function CheckoutPage() {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
     if (errors[name]) setErrors((e) => ({ ...e, [name]: false }));
+    if (submitError) setSubmitError("");
+  }
+
+  function handlePaymentChange(e) {
+    const { name, value } = e.target;
+    setPayment((prev) => ({ ...prev, [name]: value }));
+    if (paymentErrors[name]) setPaymentErrors((prev) => ({ ...prev, [name]: false }));
+    if (submitError) setSubmitError("");
+  }
+
+  function validatePaymentDetails() {
+    const nextErrors = {};
+    const normalizedCard = payment.cardNumber.replace(/\s+/g, "");
+
+    if (!/^\d{12,19}$/.test(normalizedCard)) {
+      nextErrors.cardNumber = "Enter a valid card number";
+    }
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(payment.expiry.trim())) {
+      nextErrors.expiry = "Use MM/YY format";
+    }
+    if (!/^\d{3,4}$/.test(payment.cvv.trim())) {
+      nextErrors.cvv = "Enter a valid CVV";
+    }
+    if (!payment.nameOnCard.trim()) {
+      nextErrors.nameOnCard = "Required";
+    }
+
+    setPaymentErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   }
 
   function handleNextStep1() {
@@ -36,17 +105,92 @@ export default function CheckoutPage() {
   }
 
   function handleNextStep2() {
+    if (!selectedDelivery) return;
     setCompletedSteps((prev) => new Set([...prev, 2]));
     setOpenStep(3);
   }
 
-  function handleNextStep3() {
-    navigate("/confirmation", { state: { form, cartItems } });
+  async function handleNextStep3() {
+    if (cartItems.length === 0) {
+      setSubmitError("Your cart is empty. Please add at least one ticket before placing your order.");
+      return;
+    }
+    if (!selectedDelivery) {
+      setSubmitError("Please choose a delivery method before placing your order.");
+      return;
+    }
+    if (!validatePaymentDetails()) {
+      setSubmitError("Please complete the payment section before placing your order.");
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      const booking = await createBooking({
+        userId: currentUserId,
+        eventName: cartItems[0]?.event?.name,
+        venueName: cartItems[0]?.event?.venueName ?? cartItems[0]?.event?.venue,
+        patron: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          mobile: form.mobile,
+          email: form.email,
+        },
+        deliveryMethod: selectedDelivery,
+        sameAddress,
+        billingAddress: {
+          addressLine1: form.addressLine1,
+          addressLine2: form.addressLine2,
+          city: form.city,
+          postalCode: form.postalCode,
+        },
+        payment: {
+          cardNumber: payment.cardNumber,
+          expiry: payment.expiry,
+          cvv: payment.cvv,
+          nameOnCard: payment.nameOnCard,
+        },
+        items: cartItems.map(({ seat, event, date, time }) => ({
+          eventId: event.eventId,
+          seatId: seat.seatId,
+          date,
+          time,
+          price: seat.basePrice,
+          tier: seat.tier,
+          sectionNo: seat.sectionNo,
+          rowNo: seat.rowNo,
+          seatNo: seat.seatNo,
+          seatLabel: `Section ${seat.sectionNo} · Row ${seat.rowNo} · Seat ${seat.seatNo}`,
+        })),
+      });
+
+      navigate("/confirmation", {
+        state: {
+          form,
+          cartItems,
+          orderId: booking.orderId,
+          bookingStatus: booking.status,
+          deliveryMethod: selectedDelivery,
+        },
+      });
+    } catch (error) {
+      const content = getBookingErrorContent(error);
+      setSubmitError(`${content.title}: ${content.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputClass = (name) =>
     `w-full border-b pb-1 pt-2 outline-none text-sm text-gray-800 bg-transparent transition
     ${errors[name] ? "border-red-400 focus:border-red-500" : "border-gray-300 focus:border-[#800020]"}`;
+  const paymentInputClass = (name) =>
+    `w-full border-b py-2 text-sm outline-none transition ${
+      paymentErrors[name]
+        ? "border-red-400 focus:border-red-500"
+        : "border-gray-300 focus:border-[#800020]"
+    }`;
 
   const labelClass = "block text-xs text-gray-400 mb-0.5";
 
@@ -222,6 +366,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-center">
                     <button
                       onClick={handleNextStep2}
+                      disabled={!selectedDelivery}
                       className="px-16 py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded transition flex items-center gap-2"
                     >
                       Next <ChevronRight size={16} />
@@ -263,30 +408,75 @@ export default function CheckoutPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Card Number</label>
-                        <input placeholder="1234 5678 9012 3456" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
+                        <input
+                          name="cardNumber"
+                          value={payment.cardNumber}
+                          onChange={handlePaymentChange}
+                          placeholder="1234 5678 9012 3456"
+                          className={paymentInputClass("cardNumber")}
+                        />
+                        {paymentErrors.cardNumber && (
+                          <p className="mt-1 text-xs text-red-500">{paymentErrors.cardNumber}</p>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Expiry (MM/YY)</label>
-                          <input placeholder="MM/YY" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
+                          <input
+                            name="expiry"
+                            value={payment.expiry}
+                            onChange={handlePaymentChange}
+                            placeholder="MM/YY"
+                            className={paymentInputClass("expiry")}
+                          />
+                          {paymentErrors.expiry && (
+                            <p className="mt-1 text-xs text-red-500">{paymentErrors.expiry}</p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">CVV</label>
-                          <input placeholder="123" className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
+                          <input
+                            name="cvv"
+                            value={payment.cvv}
+                            onChange={handlePaymentChange}
+                            placeholder="123"
+                            className={paymentInputClass("cvv")}
+                          />
+                          {paymentErrors.cvv && (
+                            <p className="mt-1 text-xs text-red-500">{paymentErrors.cvv}</p>
+                          )}
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Name on Card</label>
-                        <input className="w-full border-b border-gray-300 focus:border-[#800020] outline-none py-2 text-sm" />
+                        <input
+                          name="nameOnCard"
+                          value={payment.nameOnCard}
+                          onChange={handlePaymentChange}
+                          className={paymentInputClass("nameOnCard")}
+                        />
+                        {paymentErrors.nameOnCard && (
+                          <p className="mt-1 text-xs text-red-500">{paymentErrors.nameOnCard}</p>
+                        )}
                       </div>
                     </div>
                   </div>
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+                    Test booking errors with card numbers ending in `0002` for payment failure, `0003` for seat unavailable,
+                    `0004` for hold expired, or `0005` for refund required.
+                  </div>
+                  {submitError && (
+                    <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {submitError}
+                    </div>
+                  )}
                   <div className="flex justify-center">
                     <button
                       onClick={handleNextStep3}
+                      disabled={submitting || cartItems.length === 0}
                       className="px-16 py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded transition flex items-center gap-2"
                     >
-                      Place Order <ChevronRight size={16} />
+                      {submitting ? "Processing Order..." : "Place Order"} <ChevronRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -329,7 +519,7 @@ export default function CheckoutPage() {
                             <X size={13} />
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">{event.venue}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{event.venueName ?? event.venue}</p>
                         <p className="text-xs text-gray-500">{date}, {time}</p>
                       </div>
                     </div>
