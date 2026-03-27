@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
 import { getEvent, getSeatmap } from "../api";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import LoginPromptModal from "../components/LoginPromptModal";
 
 // ── Calendar helpers ──────────────────────────────────────────────────────────
 const DAYS   = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -116,13 +118,15 @@ export default function EventDetailPage() {
   const { eventId } = useParams();
   const navigate    = useNavigate();
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
-  const [event,        setEvent]        = useState(null);
-  const [loading,      setLoading]      = useState(true);
-  const [selectedDate, setSelectedDate] = useState(null); // dateId string
-  const [selectedTime, setSelectedTime] = useState(null);
-  const [autoPicked,   setAutoPicked]   = useState(null); // seat for "pick for me" modal
-  const [picking,      setPicking]      = useState(false);
+  const [event,          setEvent]          = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [selectedDate,   setSelectedDate]   = useState(null); // dateId string
+  const [selectedTime,   setSelectedTime]   = useState(null);
+  const [autoPicked,     setAutoPicked]     = useState(null); // seat for "pick for me" modal
+  const [picking,        setPicking]        = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     getEvent(eventId)
@@ -160,6 +164,7 @@ export default function EventDetailPage() {
   }
 
   function handleConfirmAutoPick() {
+    if (!isAuthenticated) { setShowLoginModal(true); return; }
     addToCart([{ seat: autoPicked, event, date: selectedDate, time: selectedTime }]);
     setAutoPicked(null);
     navigate("/checkout");
@@ -176,6 +181,7 @@ export default function EventDetailPage() {
 
   return (
     <div>
+      <LoginPromptModal open={showLoginModal} onClose={() => setShowLoginModal(false)} />
       {/* Back link */}
       <div className="px-6 py-4">
         <button

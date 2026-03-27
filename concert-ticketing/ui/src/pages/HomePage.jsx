@@ -5,7 +5,7 @@ import { EVENTS } from "../mock/data";
 function FeaturedEventCard({ event, onClick }) {
   return (
     <div
-      className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition cursor-pointer"
+      className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
       onClick={onClick}
     >
       <div className="h-60 overflow-hidden bg-gray-100">

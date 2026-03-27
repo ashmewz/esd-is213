@@ -4,6 +4,7 @@ import { ShoppingCart, User, X, LayoutDashboard, LogOut, Bell, ChevronRight } fr
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { getMyNotifications } from "../api";
+import LoginPromptModal from "./LoginPromptModal";
 
 const NAV_LINKS = [
   { label: "Home",   to: "/" },
@@ -18,9 +19,10 @@ export default function Navbar() {
     cartTotal, timeLeft, FEE,
     showCartPopup, setShowCartPopup,
   } = useCart();
-  const { user, isAdmin, isCustomer, logout, currentUserId } = useAuth();
+  const { user, isAdmin, isCustomer, isAuthenticated, logout, currentUserId } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   const hasItems = cartItems.length > 0;
@@ -38,6 +40,7 @@ export default function Navbar() {
 
   return (
     <header className="relative">
+      <LoginPromptModal open={showLoginModal} onClose={() => setShowLoginModal(false)} />
       {/* ── Top bar ─────────────────────────────────────────── */}
       <div className="bg-gray-100 px-10 py-6 flex justify-between items-center">
         {/* Logo */}
@@ -57,7 +60,7 @@ export default function Navbar() {
                 Time left: <span className="font-semibold text-gray-800">{timeLeft}</span>
               </span>
               <button
-                onClick={() => navigate("/checkout")}
+                onClick={() => isAuthenticated ? navigate("/checkout") : setShowLoginModal(true)}
                 className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
               >
                 Checkout ${cartTotal}.00
@@ -124,7 +127,7 @@ export default function Navbar() {
                     </div>
 
                     <button
-                      onClick={() => { setShowCartPopup(false); navigate("/checkout"); }}
+                      onClick={() => { setShowCartPopup(false); isAuthenticated ? navigate("/checkout") : setShowLoginModal(true); }}
                       className="w-full py-3 bg-[#800020] hover:bg-[#6a001a] text-white font-semibold rounded-lg transition"
                     >
                       Go to Checkout

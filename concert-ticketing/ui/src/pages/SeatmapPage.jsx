@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getSeatmap } from "../api";
 import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X, Calendar, Ticket } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import LoginPromptModal from "../components/LoginPromptModal";
 
 const TIERS = {
   VIP:  { color: "bg-[#6a001a]", ring: "ring-[#6a001a]", dot: "bg-[#6a001a]", label: "VIP",   price: 288, hex: "#6a001a" },
@@ -344,6 +346,8 @@ export default function SeatmapPage() {
   const seatPanelRef = useRef(null);
 
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [selectedSeats,   setSelectedSeats]   = useState([]);
   const [showTicketModal, setShowTicketModal] = useState(false);
@@ -415,6 +419,7 @@ export default function SeatmapPage() {
   }
 
   function handleAddToCart() {
+    if (!isAuthenticated) { setShowLoginModal(true); return; }
     addToCart(cartSeats.map((seat) => ({ seat, event: data.event, date, time })));
     handleClearAll();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -444,6 +449,7 @@ export default function SeatmapPage() {
 
   return (
     <div className="min-h-screen bg-white pb-28">
+      <LoginPromptModal open={showLoginModal} onClose={() => setShowLoginModal(false)} />
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="bg-gray-50 border-b px-6 py-4">
