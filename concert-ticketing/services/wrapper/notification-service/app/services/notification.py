@@ -1,16 +1,17 @@
+import smtplib
 import requests
-import os
-
-TELEGRAM_API_URL = os.environ.get("TELEGRAM_API_URL", "")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from config import (
+    TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
+)
 
 
 def send_notification(event_type: str, data: dict):
     """
-    Called by the RabbitMQ consumer whenever a relevant event is received.
-    
-    implement the Telegram/Email logic here based on event_type.
+    Entry point called by the RabbitMQ consumer.
+    Builds a message and dispatches it via Telegram and Email.
 
     event_type options:
       - "ticket.purchased"      -> order confirmed, ticket booked
@@ -18,26 +19,96 @@ def send_notification(event_type: str, data: dict):
       - "payment.refund.issued" -> refund issued after seatmap change
       - "swap.completed"        -> seat swap finalized
     """
+    subject = _build_subject(event_type)
     message = _build_message(event_type, data)
+    recipient_email = data.get("email")
+
     _send_telegram(message)
+
+    if recipient_email:
+        _send_email(recipient_email, subject, message)
+    else:
+        print(f"[!] No email address in payload for event '{event_type}'. Skipping email.")
+
+
+def _build_subject(event_type: str) -> str:
+    subjects = {
+        "ticket.purchased":      "🎟️ Your Ticket is Confirmed!",
+        "seat.reassigned":       "📍 Your Seat Has Been Reassigned",
+        "payment.refund.issued": "💰 Refund Issued for Your Order",
+        "swap.completed":        "🔄 Your Seat Swap is Complete",
+    }
+    return subjects.get(event_type, "Concert Ticketing Notification")
 
 
 def _build_message(event_type: str, data: dict) -> str:
     if event_type == "ticket.purchased":
-        return f"Your ticket has been confirmed! Order ID: {data.get('orderId')}, Seat: {data.get('seatId')}"
+        return (
+            f"🎟️ Your ticket has been confirmed!\n"
+            f"Order ID:   {data.get('orderId')}\n"
+            f"Seat:       {data.get('seatId')}\n"
+            f"Event:      {data.get('eventName', 'N/A')}\n"
+            f"Venue:      {data.get('venue', 'N/A')}\n"
+            f"Date:       {data.get('eventDate', 'N/A')}"
+        )
     elif event_type == "seat.reassigned":
-        return f"Your seat has been reassigned. New seat: {data.get('newSeatId')} for order {data.get('orderId')}"
+        return (
+            f"📍 Your seat has been reassigned due to a venue update.\n"
+            f"Order ID:   {data.get('orderId')}\n"
+            f"Old Seat:   {data.get('oldSeatId', 'N/A')}\n"
+            f"New Seat:   {data.get('newSeatId')}"
+        )
     elif event_type == "payment.refund.issued":
-        return f"A refund of ${data.get('amount')} has been issued for order {data.get('orderId')}"
+        return (
+            f"💰 A refund has been issued for your order.\n"
+            f"Order ID:   {data.get('orderId')}\n"
+            f"Amount:     ${data.get('amount')}\n"
+            f"Please allow 3-5 business days for processing."
+        )
     elif event_type == "swap.completed":
-        return f"Your seat swap is complete! Order ID: {data.get('orderId')}"
+        return (
+            f"🔄 Your seat swap has been completed!\n"
+            f"Order ID:   {data.get('orderId')}\n"
+            f"New Seat:   {data.get('newSeatId', 'N/A')}"
+        )
     else:
-        return f"Notification: {event_type} - {data}"
+        return f"Notification: {event_type}\nDetails: {data}"
 
 
 def _send_telegram(message: str):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print(f"[Notification] Telegram not configured. Message: {message}")
+        print("[Telegram] Not configured — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
         return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message})
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        response = requests.post(
+            url,
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
+            timeout=10
+        )
+        response.raise_for_status()
+        print("[✓] Telegram message sent.")
+    except requests.RequestException as e:
+        print(f"[!] Telegram send failed: {e}")
+
+
+def _send_email(recipient: str, subject: str, body: str):
+    if not SMTP_USER or not SMTP_PASSWORD:
+        print("[Email] Not configured — set SMTP_USER and SMTP_PASSWORD in .env")
+        return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = EMAIL_FROM
+        msg["To"] = recipient
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(EMAIL_FROM, recipient, msg.as_string())
+
+        print(f"[✓] Email sent to {recipient}.")
+    except smtplib.SMTPException as e:
+        print(f"[!] Email send failed to {recipient}: {e}")

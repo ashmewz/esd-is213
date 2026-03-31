@@ -1,32 +1,81 @@
 import json
+import time
 import threading
 import pika
 from config import RABBITMQ_URL, EXCHANGE_NAME, EXCHANGE_TYPE, NOTIFICATION_QUEUE, ROUTING_KEYS
 from app.services.notification import send_notification
 
+MAX_RETRIES = 5
+RETRY_BACKOFF_BASE = 2  # seconds — doubles each attempt: 2, 4, 8, 16, 32
+
 
 def on_message(ch, method, properties, body):
-    data = json.loads(body)
     routing_key = method.routing_key
-    print(f"[x] Received message on {routing_key}: {data}")
-    send_notification(routing_key, data)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    try:
+        data = json.loads(body)
+        print(f"[x] Received message on '{routing_key}': {data}")
+        send_notification(routing_key, data)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        print(f"[✓] Successfully processed '{routing_key}'")
+    except json.JSONDecodeError as e:
+        # Malformed message — reject and discard, do not requeue
+        print(f"[!] Failed to parse message body: {e}. Discarding message.")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+    except Exception as e:
+        # Something went wrong sending the notification — requeue for retry
+        print(f"[!] Error handling message on '{routing_key}': {e}. Requeuing.")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 
 def start_consumer():
-    params = pika.URLParameters(RABBITMQ_URL)
-    connection = pika.BlockingConnection(params)
-    channel = connection.channel()
+    attempt = 0
+    while True:
+        try:
+            print(f"[*] Connecting to RabbitMQ (attempt {attempt + 1})...")
+            params = pika.URLParameters(RABBITMQ_URL)
+            params.heartbeat = 60
+            params.blocked_connection_timeout = 300
+            connection = pika.BlockingConnection(params)
+            channel = connection.channel()
 
-    channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type=EXCHANGE_TYPE, durable=True)
-    channel.queue_declare(queue=NOTIFICATION_QUEUE, durable=True)
+            # Declare exchange and queue (safe to run multiple times)
+            channel.exchange_declare(
+                exchange=EXCHANGE_NAME,
+                exchange_type=EXCHANGE_TYPE,
+                durable=True
+            )
+            channel.queue_declare(queue=NOTIFICATION_QUEUE, durable=True)
 
-    for routing_key in ROUTING_KEYS:
-        channel.queue_bind(exchange=EXCHANGE_NAME, queue=NOTIFICATION_QUEUE, routing_key=routing_key)
+            for routing_key in ROUTING_KEYS:
+                channel.queue_bind(
+                    exchange=EXCHANGE_NAME,
+                    queue=NOTIFICATION_QUEUE,
+                    routing_key=routing_key
+                )
 
-    channel.basic_consume(queue=NOTIFICATION_QUEUE, on_message_callback=on_message)
-    print(f"[x] Notification service listening on: {ROUTING_KEYS}")
-    channel.start_consuming()
+            # Process one message at a time
+            channel.basic_qos(prefetch_count=1)
+            channel.basic_consume(queue=NOTIFICATION_QUEUE, on_message_callback=on_message)
+
+            attempt = 0  # Reset retry counter on successful connection
+            print(f"[✓] Connected. Listening on routing keys: {ROUTING_KEYS}")
+            channel.start_consuming()
+
+        except pika.exceptions.AMQPConnectionError as e:
+            attempt += 1
+            wait = RETRY_BACKOFF_BASE ** min(attempt, MAX_RETRIES)
+            print(f"[!] RabbitMQ connection failed: {e}. Retrying in {wait}s...")
+            time.sleep(wait)
+
+        except KeyboardInterrupt:
+            print("[*] Consumer stopped.")
+            break
+
+        except Exception as e:
+            attempt += 1
+            wait = RETRY_BACKOFF_BASE ** min(attempt, MAX_RETRIES)
+            print(f"[!] Unexpected error: {e}. Retrying in {wait}s...")
+            time.sleep(wait)
 
 
 def start_consumer_thread():

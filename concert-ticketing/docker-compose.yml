@@ -136,6 +136,11 @@ services:
     container_name: notification-service
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
     ports:
       - "5007:5000"
     networks:
@@ -149,24 +154,24 @@ services:
       timeout: 5s
       retries: 5
 
-  payment-service:
-    build: ./services/wrapper/payment-service
-    container_name: payment-service
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-    ports:
-      - "5008:5000"
-    networks:
-      - ticketing-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # payment-service:
+  #   build: ./services/wrapper/payment-service
+  #   container_name: payment-service
+  #   environment:
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+  #   ports:
+  #     - "5008:5000"
+  #   networks:
+  #     - ticketing-network
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # Kong API Gateway ----------------------------------
   kong:
@@ -181,7 +186,7 @@ services:
       - events-service
       - seat-allocation-service
       - swap-service
-      - payment-service
+      # - payment-service
       - notification-service
       - booking-service
     volumes:
