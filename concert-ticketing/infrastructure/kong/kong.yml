@@ -38,6 +38,26 @@ services:
     - ~/events/[^/]+/[^/]+$
     methods: ["GET"]
 
+- name: order-service
+  url: http://order-service:5000
+  routes:
+  - name: order-create
+    paths:
+    - /order
+    methods: ["POST"]
+  - name: order-confirm
+    paths:
+    - "~/order/[^/]+$"
+    methods: ["POST"]
+  - name: order-cancel
+    paths:
+    - "~/order/[^/]+$"
+    methods: ["DELETE"]
+  - name: order-swap-request
+    paths:
+    - "~/order/[^/]+/swap$"
+    methods: ["POST"]
+
 - name: order-admin-service
   url: http://order-service:5000
   routes:

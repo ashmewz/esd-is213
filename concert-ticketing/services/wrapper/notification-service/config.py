@@ -1,6 +1,7 @@
 import os
+from dotenv import load_dotenv
 
-RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
+load_dotenv()
 
 EXCHANGE_NAME = "concert_ticketing"
 EXCHANGE_TYPE = "topic"

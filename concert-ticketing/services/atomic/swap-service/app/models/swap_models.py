@@ -1,21 +1,20 @@
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, String, DateTime, func, Numeric, UniqueConstraint
+from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-db = SQLAlchemy()
-
-class SwapRequest(db.Model):
+class SwapRequest(Base):
     __tablename__ = "swap_requests"
     __table_args__ = {"schema": "swap_service"}
 
-    request_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = db.Column(UUID(as_uuid=True), nullable=False)
-    event_id = db.Column(UUID(as_uuid=True), nullable=False)
-    current_seat_id = db.Column(UUID(as_uuid=True), nullable=False)
-    desired_tier = db.Column(db.String(20))
-    status = db.Column(db.String(20), default="PENDING")
-    expiry = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    request_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(UUID(as_uuid=True), nullable=False)
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    current_seat_id = Column(UUID(as_uuid=True), nullable=False)
+    desired_tier = Column(String(20))
+    status = Column(String(20), default="PENDING")
+    expiry = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
 
     def to_dict(self):
         return {
@@ -28,15 +27,16 @@ class SwapRequest(db.Model):
         }
 
 
-class SwapMatch(db.Model):
+class SwapMatch(Base):
     __tablename__ = "swap_matches"
     __table_args__ = {"schema": "swap_service"}
 
-    swap_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    request_a = db.Column(UUID(as_uuid=True))
-    request_b = db.Column(UUID(as_uuid=True))
-    status = db.Column(db.String(30))
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    swap_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    request_a = Column(UUID(as_uuid=True))
+    request_b = Column(UUID(as_uuid=True))
+    status = Column(String(30))
+    created_at = Column(DateTime, server_default=func.now())
+    UniqueConstraint("request_a", "request_b", name="uq_swap_pair")
 
     def to_dict(self):
         return {
@@ -47,15 +47,15 @@ class SwapMatch(db.Model):
         }
 
 
-class SwapConfirmation(db.Model):
+class SwapConfirmation(Base):
     __tablename__ = "swap_confirmations"
     __table_args__ = {"schema": "swap_service"}
 
-    confirmation_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    swap_id = db.Column(UUID(as_uuid=True))
-    user_id = db.Column(UUID(as_uuid=True))
-    status = db.Column(db.String(20), default="PENDING")
-    responded_at = db.Column(db.DateTime)
+    confirmation_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    swap_id = Column(UUID(as_uuid=True))
+    user_id = Column(UUID(as_uuid=True))
+    status = Column(String(20), default="PENDING")
+    responded_at = Column(DateTime)
 
     def to_dict(self):
         return {
@@ -66,17 +66,17 @@ class SwapConfirmation(db.Model):
         }
 
 
-class SwapPayment(db.Model):
+class SwapPayment(Base):
     __tablename__ = "swap_payments"
     __table_args__ = {"schema": "swap_service"}
 
-    swap_payment_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    swap_id = db.Column(UUID(as_uuid=True))
-    payer_order_id = db.Column(UUID(as_uuid=True))
-    payee_order_id = db.Column(UUID(as_uuid=True))
-    amount = db.Column(db.Numeric(10, 2))
-    status = db.Column(db.String(20), default="REQUIRED")
-    transaction_id = db.Column(UUID(as_uuid=True))
+    swap_payment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    swap_id = Column(UUID(as_uuid=True))
+    payer_order_id = Column(UUID(as_uuid=True))
+    payee_order_id = Column(UUID(as_uuid=True))
+    amount = Column(Numeric(10, 2))
+    status = Column(String(20), default="REQUIRED")
+    transaction_id = Column(UUID(as_uuid=True))
 
     def to_dict(self):
         return {

@@ -1,80 +1,90 @@
-# TEMPORARY DATA FILE - remove when database is connected
+# TEMPORARY DATA FILE — replace when database is connected
+import uuid
+
+# Deterministic seat IDs so the dataset is stable across process restarts.
+_SEAT_ID_NS = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+
+
+def _seat_id(event_id: str, tier: str, section: str, row: int, seat_no: int) -> str:
+    key = f"{event_id}|{tier}|{section}|{row}|{seat_no}"
+    return str(uuid.uuid5(_SEAT_ID_NS, key))
+
+
+# Small stable dataset for integration tests
+EVENT_E1 = "a0000001-0000-4000-8000-000000000001"
+EVENT_E2 = "a0000002-0000-4000-8000-000000000001"
+VENUE_V1 = "b0000001-0000-4000-8000-000000000001"
+VENUE_V2 = "b0000002-0000-4000-8000-000000000001"
+
 events = [
     {
-        "eventId": 1,
-        "venueId": 1,
+        "eventId": EVENT_E1,
+        "venueId": VENUE_V1,
         "name": "Taylor Swift: Eras Tour",
         "date": "2025-06-15",
         "seatmap": 1,
-        "status": "ACTIVE"
+        "status": "ACTIVE",
     },
     {
-        "eventId": 2,
-        "venueId": 2,
+        "eventId": EVENT_E2,
+        "venueId": VENUE_V2,
         "name": "Coldplay: Music of the Spheres",
         "date": "2025-07-20",
         "seatmap": 2,
-        "status": "ACTIVE"
-    },
-    {
-        "eventId": 3,
-        "venueId": 1,
-        "name": "Bruno Mars: 24K Magic Tour",
-        "date": "2025-08-05",
-        "seatmap": 1,
-        "status": "ACTIVE"
-    },
-    {
-        "eventId": 4,
-        "venueId": 3,
-        "name": "Ed Sheeran: Mathematics Tour",
-        "date": "2025-05-10",
-        "seatmap": 3,
-        "status": "CANCELLED"
+        "status": "ACTIVE",
     },
 ]
 
-# Seats are generated per event based on its seatmap.
-# Seatmap 1: 3 tiers (VIP, CAT1, CAT2), 2 sections (A, B), 2 rows, 3 seats/row
-# Seatmap 2: 2 tiers (CAT1, CAT2), 1 section (A), 3 rows, 4 seats/row
-# Seatmap 3: 2 tiers (VIP, CAT1), 1 section (A), 2 rows, 2 seats/row
-
+# Seatmap 1: VIP + CAT1 in section A; compact for testing
+# Seatmap 2: CAT1 + CAT2 in section A
 SEATMAP_TEMPLATES = {
     1: [
-        {"tier": "VIP",  "sections": ["A"],      "rows": 2, "seatsPerRow": 3, "basePrice": 350.00},
-        {"tier": "CAT1", "sections": ["A", "B"], "rows": 2, "seatsPerRow": 3, "basePrice": 200.00},
-        {"tier": "CAT2", "sections": ["A", "B"], "rows": 2, "seatsPerRow": 3, "basePrice": 100.00},
+        {"tier": "VIP", "sections": ["A"], "rows": 2, "seatsPerRow": 3, "basePrice": 350.00},
+        {"tier": "CAT1", "sections": ["A"], "rows": 2, "seatsPerRow": 3, "basePrice": 200.00},
     ],
     2: [
-        {"tier": "CAT1", "sections": ["A"],      "rows": 3, "seatsPerRow": 4, "basePrice": 180.00},
-        {"tier": "CAT2", "sections": ["A"],      "rows": 3, "seatsPerRow": 4, "basePrice": 90.00},
-    ],
-    3: [
-        {"tier": "VIP",  "sections": ["A"],      "rows": 2, "seatsPerRow": 2, "basePrice": 400.00},
-        {"tier": "CAT1", "sections": ["A"],      "rows": 2, "seatsPerRow": 2, "basePrice": 220.00},
+        {"tier": "CAT1", "sections": ["A"], "rows": 2, "seatsPerRow": 4, "basePrice": 180.00},
+        {"tier": "CAT2", "sections": ["A"], "rows": 2, "seatsPerRow": 4, "basePrice": 90.00},
     ],
 }
 
-def generate_seats(events):
-    seats = []
-    seat_id = 1
-    for event in events:
+
+def _seat_label(section: str, row: int, seat_no: int) -> str:
+    return f"{section}-{row}-{seat_no}"
+
+
+def generate_seats(event_list):
+    out = []
+    for event in event_list:
+        eid = event["eventId"]
         template = SEATMAP_TEMPLATES.get(event["seatmap"], [])
         for tier_config in template:
             for section in tier_config["sections"]:
                 for row in range(1, tier_config["rows"] + 1):
                     for seat_no in range(1, tier_config["seatsPerRow"] + 1):
-                        seats.append({
-                            "seatId": seat_id,
-                            "eventId": event["eventId"],
-                            "tier": tier_config["tier"],
-                            "sectionNo": section,
-                            "rowNo": row,
-                            "seatNo": seat_no,
-                            "basePrice": tier_config["basePrice"],
-                            "status": "AVAILABLE"
-                        })
-                        seat_id += 1
-    return seats
+                        out.append(
+                            {
+                                "seatId": _seat_id(
+                                    eid, tier_config["tier"], section, row, seat_no
+                                ),
+                                "eventId": eid,
+                                "seatLabel": _seat_label(section, row, seat_no),
+                                "tier": tier_config["tier"],
+                                "sectionNo": section,
+                                "rowNo": row,
+                                "seatNo": seat_no,
+                                "basePrice": tier_config["basePrice"],
+                                "status": "AVAILABLE",
+                            }
+                        )
+    return out
+
 
 seats = generate_seats(events)
+
+
+def event_by_id(event_id: str):
+    for e in events:
+        if e["eventId"] == event_id:
+            return e
+    return None
