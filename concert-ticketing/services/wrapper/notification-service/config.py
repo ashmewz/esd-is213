@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+
 EXCHANGE_NAME = "concert_ticketing"
 EXCHANGE_TYPE = "topic"
 

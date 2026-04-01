@@ -33,7 +33,7 @@ class BookingService:
 
         self.seat_client.confirm_seat(order["orderId"], seat_id)
         self.order_client.confirm_order(order["orderId"])
-        publish_event("TicketPurchased", {
+        publish_event("ticket.purchased", {
             "orderId": order["orderId"],
             "userId": user_id
         })

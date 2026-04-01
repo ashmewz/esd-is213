@@ -1,19 +1,24 @@
 import pika
 import json
-from config import Config
+import os
 
-def publish_event(event_name, payload):
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host=Config.RABBITMQ_HOST)
-    )
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+EXCHANGE_NAME = "concert_ticketing"
+
+def publish_event(routing_key, payload):
+    connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
     channel = connection.channel()
 
-    channel.queue_declare(queue=event_name)
+    channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type="topic", durable=True)
 
     channel.basic_publish(
-        exchange='',
-        routing_key=event_name,
-        body=json.dumps(payload)
+        exchange=EXCHANGE_NAME,
+        routing_key=routing_key,
+        body=json.dumps(payload),
+        properties=pika.BasicProperties(
+            content_type='application/json',
+            delivery_mode=2
+        )
     )
 
     connection.close()
