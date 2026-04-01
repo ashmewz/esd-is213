@@ -1,4 +1,5 @@
 from flask import Flask
+from app.messaging.consumer import start_consumer_thread
 
 flask_app = Flask(__name__)
 
