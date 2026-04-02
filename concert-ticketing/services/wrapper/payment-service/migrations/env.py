@@ -1,11 +1,13 @@
+from pathlib import Path
 import os, sys
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-if os.getenv("ENV") != "production":
-    load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parents[4] 
+load_dotenv(BASE_DIR / ".env", override=True)
 
 config = context.config
 
@@ -15,11 +17,10 @@ if not db_url:
 
 config.set_main_option("sqlalchemy.url", db_url)
 
-from app import create_app, db
-create_app()
-import app.models.payment_models  # noqa: F401
+from app.core.database import Base
+import app.models.payment_models
 
-target_metadata = db.metadata
+target_metadata = Base.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):

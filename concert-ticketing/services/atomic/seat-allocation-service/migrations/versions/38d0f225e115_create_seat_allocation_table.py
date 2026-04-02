@@ -1,8 +1,8 @@
-"""create seat_allocation table
+"""create seat-allocation table\
 
-Revision ID: f7e60a7f60c0
+Revision ID: 38d0f225e115
 Revises: 
-Create Date: 2026-03-21 22:05:51.556735
+Create Date: 2026-04-02 22:30:15.212627
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f7e60a7f60c0'
+revision: str = '38d0f225e115'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,7 @@ def upgrade() -> None:
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('hold_id'),
+    sa.UniqueConstraint('event_id', 'seat_id', 'order_id', name='uq_active_hold'),
     schema='seat_allocation_service'
     )
     op.create_table('reallocation_logs',
@@ -47,10 +48,12 @@ def upgrade() -> None:
     sa.Column('event_id', sa.UUID(), nullable=False),
     sa.Column('seat_id', sa.UUID(), nullable=False),
     sa.Column('order_id', sa.UUID(), nullable=False),
-    sa.Column('hold_id', sa.UUID(), nullable=True),
+    sa.Column('hold_id', sa.UUID(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('assigned_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['event_id', 'seat_id', 'order_id'], ['seat_allocation_service.holds.event_id', 'seat_allocation_service.holds.seat_id', 'seat_allocation_service.holds.order_id'], ),
+    sa.ForeignKeyConstraint(['hold_id'], ['seat_allocation_service.holds.hold_id'], ),
     sa.PrimaryKeyConstraint('seat_assign_id'),
     schema='seat_allocation_service'
     )
