@@ -4,7 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from sqlalchemy.orm import relationship
 
-
 class Order(Base):
     __tablename__ = "orders"
     __table_args__ = {"schema": "order_service"}

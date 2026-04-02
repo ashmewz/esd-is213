@@ -1,10 +1,10 @@
 from sqlalchemy import Column, DateTime, Numeric, Text, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
-from app import db
+from app.core.database import Base
 import uuid
 
 
-class Transaction(db.Model):
+class Transaction(Base):
     __tablename__ = "transactions"
     __table_args__ = (
         CheckConstraint(
