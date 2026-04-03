@@ -23,40 +23,40 @@ services:
     methods: ["POST"]
 
 - name: events-service
-  url: http://event-service:5000
+  url: http://events-service:5000
   routes:
-  - name: events-root
+  - name: events-collection
     paths:
     - /events
-    methods: ["GET"]
-  - name: events-id
+    methods: ["GET","POST"]
+  - name: events-item
     paths:
     - ~/events/[^/]+$
-    methods: ["GET"]
-  - name: events-seat
+    methods: ["GET","PUT"]
+  - name: events-seats-collection
     paths:
-    - ~/events/[^/]+/[^/]+$
+    - ~/events/[^/]+/seats$
+    methods: ["GET"]
+  - name: events-seat-item
+    paths:
+    - ~/events/[^/]+/seats/[^/]+$
     methods: ["GET"]
 
 - name: order-service
   url: http://order-service:5000
   routes:
-  - name: order-create
+  - name: orders-create
     paths:
-    - /order
+    - /orders
     methods: ["POST"]
-  - name: order-confirm
+  - name: orders-item
     paths:
-    - "~/order/[^/]+$"
-    methods: ["POST"]
-  - name: order-cancel
+    - ~/orders/[^/]+$
+    methods: ["GET"]
+  - name: orders-status
     paths:
-    - "~/order/[^/]+$"
-    methods: ["DELETE"]
-  - name: order-swap-request
-    paths:
-    - "~/order/[^/]+/swap$"
-    methods: ["POST"]
+    - ~/orders/[^/]+/status$
+    methods: ["PUT"]
 
 - name: order-admin-service
   url: http://order-service:5000
@@ -68,26 +68,38 @@ services:
 - name: seat-allocation-service
   url: http://seat-allocation-service:5000
   routes:
-  - name: hold-id
+  - name: holds-create
     paths:
-    - "~/hold/[^/]+$"
-    methods: ["POST","DELETE"]
+    - /holds
+    methods: ["POST"]
+  - name: holds-item
+    paths:
+    - ~/holds/[^/]+$
+    methods: ["DELETE"]
+  - name: holds-confirm
+    paths:
+    - ~/holds/[^/]+/confirm$
+    methods: ["POST"]
 
 - name: payment-service
   url: http://payment-service:5000
   routes:
-  - name: payment-id
+  - name: payments-create
     paths:
-    - "~/payment/[^/]+$"
+    - /payments
     methods: ["POST"]
-  - name: payment-refund
+
+- name: user-service
+  url: http://user-service:5000
+  routes:
+  - name: users-create
     paths:
-    - "~/payment/[^/]+/refund$"
+    - /users
     methods: ["POST"]
-  - name: payment-adjust
+  - name: users-item
     paths:
-    - "~/payment/[^/]+/adjustment$"
-    methods: ["POST"]
+    - ~/users/[^/]+$
+    methods: ["GET"]
 
 - name: notification-service
   url: http://notification-service:5000
