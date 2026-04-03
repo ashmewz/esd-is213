@@ -18,32 +18,40 @@ class BookingService:
         if not seat:
             raise Exception("Invalid or unavailable seat")
 
-        order = self.order_client.create_order(user_id, event_id, seat_id)
-        hold = self.seat_client.create_hold(order["orderId"], event_id, seat_id)
+        order_resp = self.order_client.create_order(user_id, event_id, seat_id, price=seat["price"])
+        order = order_resp.get("data", order_resp)
+        order_id = order["orderId"]
+
+        hold_resp = self.seat_client.create_hold(order_id, event_id, seat_id)
+        hold = hold_resp.get("data", hold_resp)
+        hold_id = hold["holdId"]
 
         payment = self.payment_client.process_payment(
-            order_id=order["orderId"],
+            order_id=order_id,
             user_id=user_id,
-            amount=seat["basePrice"],
+            amount=seat["price"],
         )
 
         if payment["status"] != "SUCCESS":
-            self.seat_client.cancel_hold(order["orderId"])
+            self.seat_client.cancel_hold(hold_id)
             raise Exception("Payment failed")
 
-        self.seat_client.confirm_seat(order["orderId"], seat_id)
-        self.order_client.confirm_order(order["orderId"])
+        self.seat_client.confirm_seat(hold_id, payment["transactionId"])
+        self.order_client.confirm_order(order_id)
         publish_event("ticket.purchased", {
-            "orderId": order["orderId"],
+            "orderId": order_id,
             "userId": user_id
         })
 
-        self.notification_client.send_notification({
-            "userId": user_id,
-            "message": "Booking confirmed!"
-        })
+        try:
+            self.notification_client.send_notification({
+                "userId": user_id,
+                "message": "Booking confirmed!"
+            })
+        except Exception:
+            pass
 
         return {
             "status": "SUCCESS",
-            "orderId": order["orderId"]
+            "orderId": order_id
         }

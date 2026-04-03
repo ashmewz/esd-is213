@@ -4,7 +4,7 @@ from app.services.booking_service import BookingService
 booking_bp = Blueprint("booking", __name__)
 service = BookingService()
 
-@booking_bp.route("/booking", methods=["POST"])
+@booking_bp.route("/place-booking", methods=["POST"])
 def create_booking():
     data = request.json
     user_id = data.get("userId")
