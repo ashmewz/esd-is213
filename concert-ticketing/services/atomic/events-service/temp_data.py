@@ -24,6 +24,8 @@ events = [
         "date": "2025-06-15",
         "seatmap": 1,
         "status": "ACTIVE",
+        "venueName": "Singapore National Stadium",
+        "imageUrl": "/taylor.jpg",
     },
     {
         "eventId": EVENT_E2,
@@ -32,6 +34,8 @@ events = [
         "date": "2025-07-20",
         "seatmap": 2,
         "status": "ACTIVE",
+        "venueName": "Singapore Indoor Stadium",
+        "imageUrl": "/coldplay.jpg",
     },
 ]
 
