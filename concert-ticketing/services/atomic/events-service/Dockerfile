@@ -24,6 +24,7 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
 
 COPY entrypoint.sh /entrypoint.sh
+COPY migrate.py /app/migrate.py
 RUN chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]

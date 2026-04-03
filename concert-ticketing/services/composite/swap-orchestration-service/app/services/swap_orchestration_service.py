@@ -1,5 +1,5 @@
-from app.client.swap_client import create_swap_request, submit_swap_response, get_swap_status
-from app.messaging.rabbitmq_producer import publish_event
+from app.clients.swap_client import create_swap_request, submit_swap_response, get_swap_status
+from app.messaging.producer import publish_event
 
 EXCHANGE = "swap_exchange"
 

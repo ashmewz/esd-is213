@@ -22,19 +22,6 @@ services:
   events-service:
     build: ./services/atomic/events-service
     container_name: events-service
-    # Runs Alembic migrations before starting the app.
-    # The schema must exist first — Alembic won't create the schema itself.
-    command: >
-      sh -c "python -c \"
-      from sqlalchemy import create_engine, text
-      import os
-      e = create_engine(os.environ['DATABASE_URL'])
-      with e.connect() as c:
-          c.execute(text('CREATE SCHEMA IF NOT EXISTS events_service'))
-          c.commit()
-      \" &&
-      alembic upgrade head &&
-      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -51,22 +38,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   seat-allocation-service:
     build: ./services/atomic/seat-allocation-service
     container_name: seat-allocation-service
-    command: >
-      sh -c "python -c \"
-      from sqlalchemy import create_engine, text
-      import os
-      e = create_engine(os.environ['DATABASE_URL'])
-      with e.connect() as c:
-          c.execute(text('CREATE SCHEMA IF NOT EXISTS seat_allocation_service'))
-          c.commit()
-      \" &&
-      alembic upgrade head &&
-      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -83,22 +59,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   swap-service:
     build: ./services/atomic/swap-service
     container_name: swap-service
-    command: >
-      sh -c "python -c \"
-      from sqlalchemy import create_engine, text
-      import os
-      e = create_engine(os.environ['DATABASE_URL'])
-      with e.connect() as c:
-          c.execute(text('CREATE SCHEMA IF NOT EXISTS swap_service'))
-          c.commit()
-      \" &&
-      alembic upgrade head &&
-      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -115,22 +80,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   user-service:
     build: ./services/atomic/user-service
     container_name: user-service
-    command: >
-      sh -c "python -c \"
-      from sqlalchemy import create_engine, text
-      import os
-      e = create_engine(os.environ['DATABASE_URL'])
-      with e.connect() as c:
-          c.execute(text('CREATE SCHEMA IF NOT EXISTS user_service'))
-          c.commit()
-      \" &&
-      alembic upgrade head &&
-      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -147,22 +101,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   order-service:
     build: ./services/atomic/order-service
     container_name: order-service
-    command: >
-      sh -c "python -c \"
-      from sqlalchemy import create_engine, text
-      import os
-      e = create_engine(os.environ['DATABASE_URL'])
-      with e.connect() as c:
-          c.execute(text('CREATE SCHEMA IF NOT EXISTS order_service'))
-          c.commit()
-      \" &&
-      alembic upgrade head &&
-      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -179,7 +122,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   # Composite services depend on atomic services being healthy ----
   booking-service:

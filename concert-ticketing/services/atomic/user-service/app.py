@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from app.controllers.user_controller import user_bp
+from app.routes.user_routes import user_bp
 
 app = Flask(__name__)
 

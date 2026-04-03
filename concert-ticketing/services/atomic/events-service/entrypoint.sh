@@ -1,21 +1,8 @@
 #!/bin/sh
-# entrypoint.sh — runs DB migrations then starts the Flask app.
-# Executed as the container CMD; schema creation is idempotent.
 set -e
 
-echo "[entrypoint] Creating schema 'events_service' if it does not exist..."
-python - <<'PYEOF'
-import os
-from sqlalchemy import create_engine, text
-engine = create_engine(os.environ["DATABASE_URL"])
-with engine.connect() as c:
-    c.execute(text("CREATE SCHEMA IF NOT EXISTS events_service"))
-    c.commit()
-print("[entrypoint] Schema ready.")
-PYEOF
+echo "[entrypoint] Running migrate.py..."
+python /app/migrate.py
 
-echo "[entrypoint] Running Alembic migrations..."
-alembic upgrade head
-
-echo "[entrypoint] Starting application..."
+echo "[entrypoint] Starting app..."
 exec python app.py
