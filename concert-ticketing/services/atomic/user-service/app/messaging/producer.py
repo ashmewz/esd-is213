@@ -1,6 +1,7 @@
 import json
 import pika
-from app.core.config import Config
+from config import Config
+
 
 def publish_event(routing_key, message):
     connection = pika.BlockingConnection(

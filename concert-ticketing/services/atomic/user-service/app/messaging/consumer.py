@@ -1,8 +1,8 @@
 import pika
-from app.core.config import Config
+from config import Config
+
 
 def start_consumer():
-
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host=Config.RABBITMQ_HOST)
     )

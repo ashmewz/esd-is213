@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.routes.swap_orchestration_routes import start_swap, respond_to_swap, get_status
+from app.services.swap_orchestration_service import start_swap, respond_to_swap, get_status
 
 swap_orchestration_bp = Blueprint("swap_orchestrator", __name__)
 
