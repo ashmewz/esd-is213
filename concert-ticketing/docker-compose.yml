@@ -210,6 +210,7 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - ENV=production
     ports:
       - "5008:5000"
