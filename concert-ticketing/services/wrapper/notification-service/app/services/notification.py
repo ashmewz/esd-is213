@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config import (
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-    SMTP_HOST, SMTP_PORT, P_USER, SMTP_PASSWORD, EMAIL_FROM
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
 )
 
 
