@@ -1,12 +1,11 @@
 from app.clients.swap_client import create_swap_request, submit_swap_response, get_swap_status
 from app.messaging.producer import publish_event
 
-EXCHANGE = "swap_exchange"
+EXCHANGE = "concert_ticketing"
 
 def start_swap(order_id, event_id, current_seat_id, desired_tier):
     result = create_swap_request(order_id, event_id, current_seat_id, desired_tier)
 
-    swap_request = result.get("request")
     match = result.get("match")
 
     if match:
@@ -25,7 +24,7 @@ def respond_to_swap(swap_id, user_id, response):
     status = result.get("status")
 
     if status == "READY_FOR_EXECUTION":
-        publish_event(EXCHANGE, "swap.payment.required", {
+        publish_event(EXCHANGE, "swap.completed", {
             "swapId": swap_id
         })
     elif status == "FAILED":
