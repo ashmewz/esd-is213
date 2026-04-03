@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import jsonify
+from app import create_app
 
-app = Flask(__name__)
+app = create_app()
 
 @app.route("/health")
 def health():
