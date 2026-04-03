@@ -1,10 +1,12 @@
-import os, sys
-from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, pool
+import os
+import sys
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 if os.getenv("ENV") != "production":
+    from dotenv import load_dotenv
     load_dotenv()
 
 config = context.config
@@ -16,14 +18,17 @@ if not db_url:
 config.set_main_option("sqlalchemy.url", db_url)
 
 from app.core.database import Base
-import app.models.user_model
+import app.models.user_model  # noqa: F401 — registers all models
 
 target_metadata = Base.metadata
 
+SCHEMA = "user_service"
+
 
 def include_object(object, name, type_, reflected, compare_to):
+    """Only migrate objects that belong to our schema."""
     if type_ == "table":
-        return object.schema == "user_service"
+        return object.schema == SCHEMA
     return True
 
 
@@ -33,9 +38,10 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         include_schemas=True,
-        include_object=include_object
+        include_object=include_object,
+        version_table="alembic_version",
+        version_table_schema=SCHEMA,
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
@@ -48,6 +54,9 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
+        connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
+        connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
@@ -56,9 +65,8 @@ def run_migrations_online():
             include_schemas=True,
             include_object=include_object,
             version_table="alembic_version",
-            version_table_schema="user_service"
+            version_table_schema=SCHEMA,
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

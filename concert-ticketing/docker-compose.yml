@@ -22,9 +22,23 @@ services:
   events-service:
     build: ./services/atomic/events-service
     container_name: events-service
+    # Runs Alembic migrations before starting the app.
+    # The schema must exist first — Alembic won't create the schema itself.
+    command: >
+      sh -c "python -c \"
+      from sqlalchemy import create_engine, text
+      import os
+      e = create_engine(os.environ['DATABASE_URL'])
+      with e.connect() as c:
+          c.execute(text('CREATE SCHEMA IF NOT EXISTS events_service'))
+          c.commit()
+      \" &&
+      alembic upgrade head &&
+      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
     ports:
       - "5001:5000"
     networks:
@@ -37,13 +51,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   seat-allocation-service:
     build: ./services/atomic/seat-allocation-service
     container_name: seat-allocation-service
+    command: >
+      sh -c "python -c \"
+      from sqlalchemy import create_engine, text
+      import os
+      e = create_engine(os.environ['DATABASE_URL'])
+      with e.connect() as c:
+          c.execute(text('CREATE SCHEMA IF NOT EXISTS seat_allocation_service'))
+          c.commit()
+      \" &&
+      alembic upgrade head &&
+      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
     ports:
       - "5002:5000"
     networks:
@@ -56,13 +83,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   swap-service:
     build: ./services/atomic/swap-service
     container_name: swap-service
+    command: >
+      sh -c "python -c \"
+      from sqlalchemy import create_engine, text
+      import os
+      e = create_engine(os.environ['DATABASE_URL'])
+      with e.connect() as c:
+          c.execute(text('CREATE SCHEMA IF NOT EXISTS swap_service'))
+          c.commit()
+      \" &&
+      alembic upgrade head &&
+      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
     ports:
       - "5003:5000"
     networks:
@@ -75,13 +115,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   user-service:
     build: ./services/atomic/user-service
     container_name: user-service
+    command: >
+      sh -c "python -c \"
+      from sqlalchemy import create_engine, text
+      import os
+      e = create_engine(os.environ['DATABASE_URL'])
+      with e.connect() as c:
+          c.execute(text('CREATE SCHEMA IF NOT EXISTS user_service'))
+          c.commit()
+      \" &&
+      alembic upgrade head &&
+      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
     ports:
       - "5004:5000"
     networks:
@@ -94,91 +147,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
-  booking-service:
-    build: ./services/composite/booking-service
-    container_name: booking-service
-    environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-    ports:
-      - "5005:5000"
-    networks:
-      - ticketing-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  swap-orchestration-service:
-    build: ./services/composite/swap-orchestration-service
-    container_name: swap-orchestration-service
-    environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-    ports:
-      - "5006:5000"
-    networks:
-      - ticketing-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  notification-service:
-    build: ./services/wrapper/notification-service
-    container_name: notification-service
-    environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM}
-    ports:
-      - "5007:5000"
-    networks:
-      - ticketing-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  payment-service:
-    build: ./services/wrapper/payment-service
-    container_name: payment-service
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-    ports:
-      - "5008:5000"
-    networks:
-      - ticketing-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  
   order-service:
     build: ./services/atomic/order-service
     container_name: order-service
+    command: >
+      sh -c "python -c \"
+      from sqlalchemy import create_engine, text
+      import os
+      e = create_engine(os.environ['DATABASE_URL'])
+      with e.connect() as c:
+          c.execute(text('CREATE SCHEMA IF NOT EXISTS order_service'))
+          c.commit()
+      \" &&
+      alembic upgrade head &&
+      python app.py"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
     ports:
       - "5009:5000"
     networks:
@@ -191,6 +179,108 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
+
+  # Composite services depend on atomic services being healthy ----
+  booking-service:
+    build: ./services/composite/booking-service
+    container_name: booking-service
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
+    ports:
+      - "5005:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      events-service:
+        condition: service_healthy
+      seat-allocation-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  swap-orchestration-service:
+    build: ./services/composite/swap-orchestration-service
+    container_name: swap-orchestration-service
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
+    ports:
+      - "5006:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      swap-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # notification-service:
+  #   build: ./services/wrapper/notification-service
+  #   container_name: notification-service
+  #   environment:
+  #     - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+  #     - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+  #     - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+  #     - SMTP_USER=${SMTP_USER}
+  #     - SMTP_PASSWORD=${SMTP_PASSWORD}
+  #     - EMAIL_FROM=${EMAIL_FROM}
+  #     - ENV=production
+  #   ports:
+  #     - "5007:5000"
+  #   networks:
+  #     - ticketing-network
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 20s
+
+  payment-service:
+    build: ./services/wrapper/payment-service
+    container_name: payment-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ENV=production
+    ports:
+      - "5008:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # Kong API Gateway ----------------------------------
   kong:
@@ -202,13 +292,24 @@ services:
     networks:
       - ticketing-network
     depends_on:
-      - events-service
-      - seat-allocation-service
-      - swap-service
-      # - payment-service
-      - notification-service
-      - booking-service
-      - order-service
+      events-service:
+        condition: service_healthy
+      seat-allocation-service:
+        condition: service_healthy
+      swap-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      swap-orchestration-service:
+        condition: service_healthy
+      # notification-service:
+      #   condition: service_healthy
     volumes:
       - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
     environment:
