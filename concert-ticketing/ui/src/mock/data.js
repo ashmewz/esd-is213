@@ -58,13 +58,10 @@ const ROW_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export function generateSeatsFromConfig(eventId, config) {
   const seats = [];
   let seatId = (eventId - 1) * 1000 + 1;
-  const soldOffsets = new Set([2, 5, 9, 14, 22, 30, 35, 41, 55, 60, 72, 80, 95]);
-
   config.forEach(({ tier, sectionNo, rowCount, seatsPerRow, basePrice }) => {
     const rows = ROW_LABELS.slice(0, Math.min(rowCount, 26));
     rows.forEach((rowLabel) => {
       for (let s = 1; s <= seatsPerRow; s++) {
-        const offset = seatId - ((eventId - 1) * 1000 + 1);
         seats.push({
           seatId,
           eventId,
@@ -73,7 +70,7 @@ export function generateSeatsFromConfig(eventId, config) {
           rowNo: rowLabel,
           seatNo: s,
           basePrice,
-          status: soldOffsets.has(offset % 100) ? "sold" : "available",
+          status: "available",
         });
         seatId++;
       }

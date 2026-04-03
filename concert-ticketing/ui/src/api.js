@@ -22,6 +22,8 @@ api.interceptors.request.use((config) => {
 export {
   USER_ID,
   adminLogin,
+  holdSeat,
+  releaseHold,
   getMyNotifications,
   simulateSeatReassignment,
   simulateRefundIssued,

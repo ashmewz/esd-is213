@@ -20,6 +20,21 @@ let seatmaps = Object.fromEntries(
 let nextEventId = Math.max(...events.map((e) => e.eventId)) + 1;
 const ORDER_STORAGE_KEY = "stagepass_orders";
 const SWAP_STORAGE_KEY = "stagepass_swap_requests";
+const HOLDS_STORAGE_KEY = "stagepass_holds";
+const HOLD_DURATION_MS = 15 * 60 * 1000;
+
+function loadHolds() {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(HOLDS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveHolds(holds) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(HOLDS_STORAGE_KEY, JSON.stringify(holds)); } catch {}
+}
 
 // Tier prices: eventId → { VIP: n, CAT1: n, ... }
 let tierPrices = {};
@@ -90,7 +105,38 @@ export function storeGetEvent(eventId) {
 }
 
 export function storeGetSeatmap(eventId) {
-  return seatmaps[Number(eventId)] ?? null;
+  const data = seatmaps[Number(eventId)] ?? null;
+  if (!data) return null;
+  const holds = loadHolds()[Number(eventId)] ?? {};
+  const now = Date.now();
+  const activeHolds = new Set(
+    Object.entries(holds)
+      .filter(([, exp]) => new Date(exp).getTime() > now)
+      .map(([id]) => Number(id))
+  );
+  return {
+    ...data,
+    seats: data.seats.map((s) =>
+      s.status === "available" && activeHolds.has(s.seatId)
+        ? { ...s, status: "on_hold" }
+        : s
+    ),
+  };
+}
+
+export function storeHoldSeat(eventId, seatId) {
+  const holds = loadHolds();
+  const eid = Number(eventId);
+  if (!holds[eid]) holds[eid] = {};
+  holds[eid][Number(seatId)] = new Date(Date.now() + HOLD_DURATION_MS).toISOString();
+  saveHolds(holds);
+}
+
+export function storeReleaseHold(eventId, seatId) {
+  const holds = loadHolds();
+  const eid = Number(eventId);
+  if (holds[eid]) delete holds[eid][Number(seatId)];
+  saveHolds(holds);
 }
 
 export function storeGetTierPrices(eventId) {
