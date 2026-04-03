@@ -1,6 +1,10 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
+from app.routes.event_routes import event_bp
 
 app = Flask(__name__)
+CORS(app)
+app.register_blueprint(event_bp)
 
 @app.route("/health")
 def health():

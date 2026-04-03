@@ -3,6 +3,25 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { adminGetEvents, adminCreateEvent, adminUpdateEvent } from "../../api";
 
+const VENUES = [
+  "Singapore National Stadium",
+  "Singapore Indoor Stadium",
+  "Resorts World Theatre",
+  "Mediacorp Theatre",
+  "Capitol Theatre",
+  "The Star Theatre",
+  "Resorts World Ballroom",
+  "Singapore EXPO Hall 7",
+  "Fort Canning Park",
+];
+
+function autoLabel(dateId) {
+  if (!dateId) return "";
+  const d = new Date(dateId + "T00:00:00");
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}
+
 const EMPTY_DATE = () => ({ dateId: "", label: "", times: [""] });
 
 export default function AdminEventForm() {
@@ -11,8 +30,7 @@ export default function AdminEventForm() {
   const isEdit      = Boolean(eventId);
 
   const [name,      setName]      = useState("");
-  const [venueName, setVenueName] = useState("");
-  const [date,      setDate]      = useState(""); // display date string
+  const [venueName, setVenueName] = useState(VENUES[0]);
   const [status,    setStatus]    = useState("active");
   const [imageUrl,  setImageUrl]  = useState("");
   const [dates,     setDates]     = useState([EMPTY_DATE()]);
@@ -22,20 +40,24 @@ export default function AdminEventForm() {
   useEffect(() => {
     if (!isEdit) return;
     adminGetEvents().then((events) => {
-      const ev = events.find((e) => e.eventId === Number(eventId));
+      const ev = events.find((e) => String(e.eventId) === String(eventId));
       if (!ev) return;
       setName(ev.name);
-      setVenueName(ev.venueName);
-      setDate(ev.date);
+      setVenueName(ev.venueName ?? VENUES[0]);
       setStatus(ev.status);
       setImageUrl(ev.imageUrl ?? "");
-      setDates(ev.dates.length > 0 ? ev.dates.map((d) => ({ ...d, times: [...d.times] })) : [EMPTY_DATE()]);
+      setDates(ev.dates?.length > 0 ? ev.dates.map((d) => ({ ...d, times: [...(d.times ?? [""])] })) : [EMPTY_DATE()]);
     });
   }, [eventId, isEdit]);
 
   // ── Date/time helpers ────────────────────────────────────────────────────
   function updateDate(i, field, value) {
-    setDates((prev) => prev.map((d, idx) => idx === i ? { ...d, [field]: value } : d));
+    setDates((prev) => prev.map((d, idx) => {
+      if (idx !== i) return d;
+      const updated = { ...d, [field]: value };
+      if (field === "dateId") updated.label = autoLabel(value);
+      return updated;
+    }));
   }
 
   function updateTime(dateIdx, timeIdx, value) {
@@ -76,13 +98,13 @@ export default function AdminEventForm() {
     setError("");
     setSaving(true);
     try {
+      const validDates = dates.filter((d) => d.dateId);
       const payload = {
         name,
         venueName,
-        date,
         status,
         imageUrl,
-        dates: dates.filter((d) => d.dateId && d.label),
+        dates: validDates,
       };
       if (isEdit) {
         await adminUpdateEvent(eventId, payload);
@@ -120,17 +142,9 @@ export default function AdminEventForm() {
         </Field>
 
         <Field label="Venue">
-          <input
-            type="text" value={venueName} onChange={(e) => setVenueName(e.target.value)}
-            className={inputCls} placeholder="e.g. Singapore National Stadium" required
-          />
-        </Field>
-
-        <Field label="Display Date (shown on cards)">
-          <input
-            type="text" value={date} onChange={(e) => setDate(e.target.value)}
-            className={inputCls} placeholder="e.g. Fri 15 – Sat 16 Aug 2026" required
-          />
+          <select value={venueName} onChange={(e) => setVenueName(e.target.value)} className={inputCls} required>
+            {VENUES.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </Field>
 
         <Field label="Image">
@@ -187,11 +201,10 @@ export default function AdminEventForm() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs text-gray-500 mb-1 block">Display Label</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Display Label (auto)</label>
                     <input
-                      type="text" value={d.label}
-                      onChange={(e) => updateDate(di, "label", e.target.value)}
-                      className={inputCls} placeholder="Sat 22 Nov 2026"
+                      type="text" value={d.label} readOnly
+                      className={`${inputCls} bg-gray-50 text-gray-500 cursor-default`} placeholder="Set date ID to auto-fill"
                     />
                   </div>
                   {dates.length > 1 && (
