@@ -1,37 +1,24 @@
-import axios from "axios";
+import { DEFAULT_SEAT_CONFIG, generateSeatsFromConfig } from "./mock/data";
+import { DEFAULT_VENUE_SECTIONS } from "./mock/venueData";
 
-const api = axios.create({ baseURL: "http://localhost:8000" });
-
-// Attach JWT token to every request if present
-api.interceptors.request.use((config) => {
-  const raw = localStorage.getItem("stagepass_user");
-  if (raw) {
-    try {
-      const user = JSON.parse(raw);
-      if (user?.token) {
-        config.headers.Authorization = `Bearer ${user.token}`;
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return config;
-});
-
-// ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
+export { USER_ID } from "./mock/mockApi";
 export {
-  USER_ID,
-  adminLogin,
   holdSeat,
   releaseHold,
+  validateSeat,
+  customerLogin,
+  createBooking,
+  getMyOrders,
   getMyNotifications,
   simulateSeatReassignment,
   simulateRefundIssued,
+  getMySwapRequests,
+  createSwapRequest,
+  cancelSwapRequest,
   simulateSwapMatch,
-  adminGetEvents,
-  adminCreateEvent,
-  adminUpdateEvent,
-  adminDeleteEvent,
+  respondToSwapRequest,
+  // Admin (non-event)
+  adminLogin,
   adminGetTierPrices,
   adminUpdateTierPrices,
   adminGetSectionConfigs,
@@ -40,143 +27,92 @@ export {
   adminSetVisualSections,
 } from "./mock/mockApi";
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
-export async function registerUser(username, email, password) {
-  try {
-    const res = await api.post("/users", { username, email, password });
-    return res.data;
-  } catch (err) {
-    const msg = err.response?.data?.error ?? "Registration failed";
-    throw new Error(msg);
-  }
-}
+// ── Real API ──────────────────────────────────────────────────────────────────
+const EVENTS_API = import.meta.env.VITE_EVENTS_API_URL;
 
-export async function loginUser(email, password) {
-  try {
-    const res = await api.post("/users/login", { email, password });
-    // res.data = { token, user: { user_id, username, email, ... } }
-    const { token, user } = res.data;
-    return {
-      userId: user.user_id,
-      username: user.username,
-      email: user.email,
-      role: "customer",
-      token,
-    };
-  } catch (err) {
-    const msg = err.response?.data?.error ?? "Invalid credentials";
-    throw new Error(msg);
-  }
-}
-
-// ── Events ──────────────────────────────────────────────────────────────────
-export async function getEvents() {
-  const res = await api.get("/events");
-  return res.data;
+// Normalise real API event shape → UI shape
+function normaliseEvent(e) {
+  return {
+    eventId:   e.eventId,
+    name:      e.name,
+    venueName: e.venueName ?? e.venueId ?? "",
+    date:      e.date ?? e.eventDate ?? "",
+    status:    (e.status ?? "").toLowerCase(),
+    minPrice:  e.minPrice ?? null,
+    imageUrl:  e.imageUrl ?? null,
+    dates:     e.dates ?? [],
+  };
 }
 
 export async function getEvent(eventId) {
-  const res = await api.get(`/events/${eventId}`);
-  const event = res.data;
-  // Normalise: backend stores a single `date` string; UI expects `dates: [{ dateId, times }]`
-  if (event && event.date && !event.dates) {
-    event.dates = [{ dateId: event.date, times: ["19:00"] }];
-  }
-  return event;
+  const res = await fetch(`${EVENTS_API}/events/${eventId}`);
+  if (!res.ok) throw new Error("Event not found");
+  return normaliseEvent(await res.json());
 }
 
+export async function getEvents() {
+  const res = await fetch(`${EVENTS_API}/events`);
+  if (!res.ok) throw new Error("Failed to fetch events");
+  const data = await res.json();
+  return data.map(normaliseEvent);
+}
+
+// getSeatmap fetches the real event then generates mock seats (until seat-service is wired)
 export async function getSeatmap(eventId) {
-  const [seatsRes, eventRes] = await Promise.all([
-    api.get(`/events/${eventId}/seats`),
-    api.get(`/events/${eventId}`),
-  ]);
-  const event = eventRes.data;
-  if (event && event.date && !event.dates) {
-    event.dates = [{ dateId: event.date, times: ["19:00"] }];
-  }
-  // Normalise to match shape the UI expects: { seats, event, visualSections }
-  // Pass null so SeatmapPage falls back to its built-in VENUE_SECTIONS constant
-  return { seats: seatsRes.data, event, visualSections: null };
+  const event = await getEvent(eventId);
+  // Use a stable numeric seed from the UUID for mock seat generation
+  const seed = parseInt(event.eventId.replace(/-/g, "").slice(0, 8), 16) % 3 + 1;
+  const seats = generateSeatsFromConfig(seed, DEFAULT_SEAT_CONFIG);
+  return {
+    event,
+    seats,
+    visualSections: DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false })),
+  };
 }
 
-export async function validateSeat(eventId, seatId) {
-  const res = await api.get(`/events/${eventId}/seats/${seatId}`);
-  return res.data;
+export async function adminGetEvents() {
+  const res = await fetch(`${EVENTS_API}/events`);
+  if (!res.ok) throw new Error("Failed to fetch events");
+  const data = await res.json();
+  return data.map(normaliseEvent);
 }
 
-// ── Booking ─────────────────────────────────────────────────────────────────
-export async function createBooking(payload) {
-  const items = payload?.items ?? [];
-  if (items.length === 0) {
-    const error = new Error("Your cart is empty.");
-    error.code = "EMPTY_CART";
-    throw error;
-  }
-
-  // Backend only supports one seat per booking currently
-  const item = items[0];
-  try {
-    const cardNumber = payload.payment?.cardNumber?.replace(/\s+/g, "") ?? "";
-    const cardLast4 = cardNumber.slice(-4);
-    const res = await api.post("/place-booking", {
-      userId: payload.userId,
-      eventId: item.eventId,
-      seatId: item.seatId,
-      cardLast4,
-    });
-    return {
-      orderId: res.data.orderId,
-      status: res.data.status,
-    };
-  } catch (err) {
-    const msg = err.response?.data?.error ?? "Payment failed";
-    const error = new Error(msg);
-    const lower = msg.toLowerCase();
-    if (lower.includes("unavailable seat") || lower.includes("invalid or unavailable")) {
-      error.code = "SEAT_UNAVAILABLE";
-    } else if (lower.includes("payment failed")) {
-      error.code = "PAYMENT_FAILED";
-    } else if (lower.includes("hold expired")) {
-      error.code = "HOLD_EXPIRED";
-    } else if (lower.includes("refund")) {
-      error.code = "REFUND_REQUIRED";
-    } else {
-      error.code = "UNKNOWN_ERROR";
-    }
-    throw error;
-  }
-}
-
-// ── Orders ───────────────────────────────────────────────────────────────────
-export async function getMyOrders(userId) {
-  const res = await api.get(`/orders/${userId}`);
-  return res.data;
-}
-
-// ── Swap ─────────────────────────────────────────────────────────────────────
-export async function getMySwapRequests(userId) {
-  const res = await api.get(`/swap-requests?userId=${userId}`);
-  return res.data;
-}
-
-export async function createSwapRequest(payload) {
-  const res = await api.post("/swap-requests", {
-    orderId: payload.orderId,
-    eventId: payload.eventId,
-    currentSeatId: payload.seatId,
-    desiredTier: payload.desiredTier,
+export async function adminCreateEvent(data) {
+  const res = await fetch(`${EVENTS_API}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name:      data.name,
+      eventDate: data.dates?.[0]?.dateId ?? data.date ?? new Date().toISOString(),
+      status:    (data.status ?? "active").toUpperCase(),
+      venueName: data.venueName,
+      imageUrl:  data.imageUrl,
+      dates:     data.dates,
+    }),
   });
-  return res.data;
+  if (!res.ok) throw new Error("Failed to create event");
+  return normaliseEvent(await res.json());
 }
 
-export async function cancelSwapRequest(requestId) {
-  const res = await api.delete(`/swap-requests/${requestId}`);
-  return res.data;
-}
-
-export async function respondToSwapRequest(swapId, response) {
-  const res = await api.post(`/swap-matches/${swapId}/response`, {
-    response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
+export async function adminUpdateEvent(eventId, data) {
+  const res = await fetch(`${EVENTS_API}/events/${eventId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name:      data.name,
+      eventDate: data.dates?.[0]?.dateId ?? data.date,
+      status:    (data.status ?? "active").toUpperCase(),
+      venueName: data.venueName,
+      imageUrl:  data.imageUrl,
+      dates:     data.dates,
+    }),
   });
-  return res.data;
+  if (!res.ok) throw new Error("Failed to update event");
+  return normaliseEvent(await res.json());
+}
+
+export async function adminDeleteEvent(eventId) {
+  const res = await fetch(`${EVENTS_API}/events/${eventId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete event");
+  return { success: true };
 }
