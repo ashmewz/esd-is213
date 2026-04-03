@@ -4,6 +4,8 @@ export {
   getEvents,
   getEvent,
   getSeatmap,
+  holdSeat,
+  releaseHold,
   validateSeat,
   customerLogin,
   createBooking,

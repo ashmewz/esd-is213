@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { getSeatmap } from "../api";
+import { getSeatmap, holdSeat, releaseHold } from "../api";
 import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X, Calendar, Ticket } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
@@ -244,7 +244,7 @@ function SectionDetail({ venueSection, sectionData, selectedSeats, cartSeats, in
       </div>
 
       {/* Seat grid — proportional to section size */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pt-2 pb-7">
         <div className="inline-block">
           {displayRows.map(([rowLabel, rowSeats]) => (
             <div key={rowLabel} className="flex items-center gap-1 mb-1.5">
@@ -252,27 +252,33 @@ function SectionDetail({ venueSection, sectionData, selectedSeats, cartSeats, in
               <div className="flex gap-1">
                 {rowSeats.slice(0, targetCols).map((seat) => {
                   const avail      = seat.status === "available";
+                  const onHold     = seat.status === "on_hold";
                   const isSelected =
                     selectedSeats.some((s) => s.seatId === seat.seatId) ||
                     cartSeats.some((s) => s.seatId === seat.seatId);
+                  const tooltipLabel = isSelected ? "Selected" : avail ? "Available" : onHold ? "On Hold" : "Unavailable";
                   return (
                     <div key={seat.seatId} className="relative group">
                       <button
                         disabled={!avail || (inCartBar && !isSelected)}
                         onClick={() => onSeatClick(seat)}
                         className={`w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center transition-all
-                          ${!avail
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : isSelected
+                          ${isSelected
                             ? `bg-gray-900 text-white ring-2 ${cfg?.ring ?? ""} ring-offset-1 scale-110`
-                            : "text-white hover:scale-110 hover:brightness-110 cursor-pointer"
+                            : avail
+                            ? "bg-green-400 text-white hover:scale-110 hover:brightness-110 cursor-pointer"
+                            : onHold
+                            ? "bg-gray-400 text-white cursor-not-allowed"
+                            : "bg-red-400 text-white cursor-not-allowed"
                           }`}
-                        style={avail && !isSelected ? { backgroundColor: cfg?.hex ?? "#d1d5db" } : {}}
                       >
                         {isSelected
                           ? <Check size={10} strokeWidth={3} />
                           : (showNumbers || !avail) ? seat.seatNo : ""}
                       </button>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-1.5 py-0.5 bg-gray-900 text-white text-[9px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-20 transition-opacity">
+                        {tooltipLabel}
+                      </div>
                     </div>
                   );
                 })}
@@ -351,18 +357,25 @@ export default function SeatmapPage() {
 
   const [selectedSeats,   setSelectedSeats]   = useState([]);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [modalError,      setModalError]      = useState(null);
   const [cartSeats,       setCartSeats]       = useState([]);
   const [cartBarExpanded, setCartBarExpanded] = useState(false);
 
   const inCartBar = cartSeats.length > 0;
   const cartTotal = cartSeats.reduce((s, seat) => s + seat.basePrice + FEE, 0);
 
+  const refreshSeatmap = useCallback(() => {
+    getSeatmap(eventId).then(setData).catch(() => {});
+  }, [eventId]);
+
   useEffect(() => {
     getSeatmap(eventId)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [eventId]);
+    const interval = setInterval(refreshSeatmap, 30_000);
+    return () => clearInterval(interval);
+  }, [eventId, refreshSeatmap]);
 
   function handleDateChange(newDate) {
     setSidebarDate(newDate);
@@ -396,10 +409,24 @@ export default function SeatmapPage() {
     });
   }
 
-  function handleModalContinue() {
+  async function handleModalContinue() {
     if (selectedSeats.length === 0) return;
+    const fresh = await getSeatmap(eventId);
+    setData(fresh);
+    const freshById = new Map(fresh.seats.map((s) => [s.seatId, s]));
+    const taken = selectedSeats.filter((s) => freshById.get(s.seatId)?.status !== "available");
+    if (taken.length > 0) {
+      setSelectedSeats((prev) => prev.filter((s) => !taken.some((t) => t.seatId === s.seatId)));
+      setModalError(
+        `${taken.length} seat${taken.length > 1 ? "s have" : " has"} just been taken by another user and removed from your selection. Please choose different seats.`
+      );
+      return;
+    }
+    setModalError(null);
+    selectedSeats.forEach((s) => holdSeat(eventId, s.seatId));
     setCartSeats(selectedSeats);
     setShowTicketModal(false);
+    refreshSeatmap();
   }
 
   function handleRemoveFromModal(seatId) {
@@ -407,15 +434,18 @@ export default function SeatmapPage() {
   }
 
   function handleRemoveFromCart(seatId) {
+    releaseHold(eventId, seatId);
     const next = cartSeats.filter((s) => s.seatId !== seatId);
     if (next.length === 0) handleClearAll();
-    else setCartSeats(next);
+    else { setCartSeats(next); refreshSeatmap(); }
   }
 
   function handleClearAll() {
+    cartSeats.forEach((s) => releaseHold(eventId, s.seatId));
     setSelectedSeats([]);
     setCartSeats([]);
     setCartBarExpanded(false);
+    refreshSeatmap();
   }
 
   function handleAddToCart() {
@@ -430,6 +460,8 @@ export default function SeatmapPage() {
     setCartSeats((prev) => {
       const existingIds = new Set(prev.map((s) => s.seatId));
       const fresh = seats.filter((s) => !existingIds.has(s.seatId));
+      fresh.forEach((s) => holdSeat(eventId, s.seatId));
+      if (fresh.length > 0) refreshSeatmap();
       return [...prev, ...fresh];
     });
   }
@@ -583,15 +615,18 @@ export default function SeatmapPage() {
               <p className="text-xs font-semibold text-gray-600 mb-3">Map Key</p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className="w-4 h-4 rounded-sm bg-teal-400" /> Available
+                  <div className="w-4 h-4 rounded-full bg-green-400" /> Available
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className="w-4 h-4 rounded-sm bg-gray-900 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-gray-400" /> On Hold
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="w-4 h-4 rounded-full bg-red-400" /> Unavailable
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="w-4 h-4 rounded-full bg-gray-900 flex items-center justify-center">
                     <Check size={8} strokeWidth={3} className="text-white" />
                   </div> Selected
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <div className="w-4 h-4 rounded-sm border-2 border-gray-300 bg-white" /> Unavailable
                 </div>
               </div>
             </div>
@@ -673,9 +708,14 @@ export default function SeatmapPage() {
                   <option>Adult (Min: 1 Max: 99) – ${selectedSeats[0]?.basePrice ?? 0}.00</option>
                 </select>
               </div>
+              {modalError && (
+                <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {modalError}
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <button
-                  onClick={() => setShowTicketModal(false)}
+                  onClick={() => { setShowTicketModal(false); setModalError(null); }}
                   className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"
                 >
                   <ChevronLeft size={14} /> Go Back

@@ -18,6 +18,8 @@ import {
   storeGetSwapRequestsByUser,
   storeCancelSwapRequest,
   storeUpdateSwapRequest,
+  storeHoldSeat,
+  storeReleaseHold,
 } from "./store";
 
 export const USER_ID = 1;
@@ -65,6 +67,14 @@ export async function getSeatmap(eventId) {
   if (!data) throw new Error("Event not found");
   // Include per-event visual sections so SeatmapPage uses live admin changes
   return { ...data, visualSections: storeGetVisualSections(eventId) };
+}
+
+export async function holdSeat(eventId, seatId) {
+  storeHoldSeat(eventId, seatId);
+}
+
+export async function releaseHold(eventId, seatId) {
+  storeReleaseHold(eventId, seatId);
 }
 
 export async function validateSeat(eventId, seatId) {
