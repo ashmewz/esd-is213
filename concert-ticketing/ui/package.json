@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.14.0",
     "lucide-react": "^0.577.0",

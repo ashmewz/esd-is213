@@ -94,14 +94,14 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
     ports:
-      - "5004:5000"
+      - "50051:50051"   # gRPC
     networks:
       - ticketing-network
     depends_on:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
