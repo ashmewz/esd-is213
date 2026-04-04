@@ -131,6 +131,7 @@ services:
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
+      - ORDER_SERVICE_URL=https://personal-v9ndj4pt.outsystemscloud.com/Order/rest/Order
     ports:
       - "5005:5000"
     networks:
