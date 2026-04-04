@@ -19,9 +19,12 @@ class PaymentClient:
             "idempotencyKey": f"purchase-{order_id}",
             "cardLast4": card_last4,
         }
-        response = requests.post(
-            f"{Config.PAYMENT_SERVICE_URL}/payments",
-            json=payload,
-            timeout=10,
-        )
+        try:
+            response = requests.post(
+                f"{Config.PAYMENT_SERVICE_URL}/payments",
+                json=payload,
+                timeout=10,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(f"Payment service unreachable: {exc}") from exc
         return response.json()

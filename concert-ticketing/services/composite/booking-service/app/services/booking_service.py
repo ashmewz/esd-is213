@@ -38,8 +38,7 @@ class BookingService:
         order_resp = self.order_client.create_order(
             user_id, event_id, seat_id, price=seat_price
         )
-        order = order_resp.get("data", order_resp)
-        order_id = order["orderId"]
+        order_id = order_resp["orderId"]
 
         # ── Step A6: Create hold ──
         try:

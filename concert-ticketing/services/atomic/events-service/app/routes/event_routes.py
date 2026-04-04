@@ -1,47 +1,22 @@
-import uuid
-
 from flask import Blueprint, jsonify, request
-
-from temp_data import event_by_id, events, seats
+from app.core.database import SessionLocal
+from app.models.events_models import Event, Seat
 
 event_bp = Blueprint("events", __name__)
 
 ALLOWED_SEAT_STATUSES = frozenset({"available", "held", "sold", "blocked", "removed"})
 
 
-def _seat_response(seat: dict) -> dict:
-    status = seat["status"]
-    if isinstance(status, str):
-        status = status.lower()
-
+def _seat_response(seat: Seat) -> dict:
     return {
-        "seatId": seat["seatId"],
-        "eventId": seat["eventId"],
-        "seatLabel": seat["seatLabel"],
-        "sectionNo": seat["sectionNo"],
-        "rowNo": seat["rowNo"],
-        "seatNo": seat["seatNo"],
-        "tier": seat["tier"],
-        "basePrice": float(seat["basePrice"]),
-        "status": status,
-    }
-
-
-def _seat_status_update_data(seat: dict) -> dict:
-    """Payload shape for PUT .../status (composite / Scenario A)."""
-    status = seat["status"]
-    if isinstance(status, str):
-        status = status.lower()
-
-    return {
-        "seatId": seat["seatId"],
-        "eventId": seat["eventId"],
-        "tier": seat["tier"],
-        "sectionNo": seat["sectionNo"],
-        "rowNo": seat["rowNo"],
-        "seatNo": seat["seatNo"],
-        "basePrice": float(seat["basePrice"]),
-        "status": status,
+        "seatId": str(seat.seat_id),
+        "eventId": str(seat.event_id),
+        "sectionNo": int(seat.section_no) if seat.section_no is not None else None,
+        "rowNo": int(seat.row_no) if seat.row_no is not None else None,
+        "seatNo": int(seat.seat_no) if seat.seat_no is not None else None,
+        "tier": seat.tier,
+        "basePrice": float(seat.base_price),
+        "status": seat.status.lower() if seat.status else "available",
     }
 
 
@@ -52,123 +27,80 @@ def hello():
 
 @event_bp.route("/events")
 def list_events():
-    return jsonify(events), 200
-
-
-@event_bp.route("/events", methods=["POST"])
-def create_event():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Request body is required"}), 400
-
-    required_fields = ["venueId", "name", "date", "seatmap", "status"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
-
-    new_event = {
-        "eventId": str(uuid.uuid4()),
-        "venueId": data["venueId"],
-        "name": data["name"],
-        "date": data["date"],
-        "seatmap": data["seatmap"],
-        "status": data["status"],
-    }
-    events.append(new_event)
-    return jsonify(new_event), 201
+    db = SessionLocal()
+    try:
+        events = db.query(Event).all()
+        return jsonify([e.to_dict() for e in events]), 200
+    finally:
+        db.close()
 
 
 @event_bp.route("/events/<event_id>")
 def get_event(event_id):
-    event = event_by_id(event_id)
-    if event is None:
-        return jsonify({"error": "Event not found"}), 404
-    return jsonify(event), 200
-
-
-@event_bp.route("/events/<event_id>", methods=["PUT"])
-def update_event(event_id):
-    event = event_by_id(event_id)
-    if event is None:
-        return jsonify({"error": "Event not found"}), 404
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Request body is required"}), 400
-
-    updatable_fields = ["venueId", "name", "date", "seatmap", "status"]
-    for field in updatable_fields:
-        if field in data:
-            event[field] = data[field]
-
-    return jsonify(event), 200
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter_by(event_id=event_id).first()
+        if event is None:
+            return jsonify({"error": "Event not found"}), 404
+        return jsonify(event.to_dict()), 200
+    finally:
+        db.close()
 
 
 @event_bp.route("/events/<event_id>/seats")
 def list_seats_for_event(event_id):
-    if event_by_id(event_id) is None:
-        return jsonify({"error": "Event not found"}), 404
-
-    event_seats = [s for s in seats if s["eventId"] == event_id]
-    return jsonify([_seat_response(s) for s in event_seats]), 200
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter_by(event_id=event_id).first()
+        if event is None:
+            return jsonify({"error": "Event not found"}), 404
+        seats = db.query(Seat).filter_by(event_id=event_id).all()
+        return jsonify([_seat_response(s) for s in seats]), 200
+    finally:
+        db.close()
 
 
 @event_bp.route("/events/<event_id>/seats/<seat_id>")
 def get_seat(event_id, seat_id):
-    if event_by_id(event_id) is None:
-        return jsonify({"error": "Event not found"}), 404
-
-    for s in seats:
-        if s["seatId"] == seat_id and s["eventId"] == event_id:
-            return jsonify(_seat_response(s)), 200
-
-    return jsonify({"error": "Seat not found"}), 404
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter_by(event_id=event_id).first()
+        if event is None:
+            return jsonify({"error": "Event not found"}), 404
+        seat = db.query(Seat).filter_by(seat_id=seat_id, event_id=event_id).first()
+        if seat is None:
+            return jsonify({"error": "Seat not found"}), 404
+        if seat.status.lower() != "available":
+            return jsonify({"error": "Seat is not available"}), 409
+        return jsonify(_seat_response(seat)), 200
+    finally:
+        db.close()
 
 
 @event_bp.route("/events/<event_id>/seats/<seat_id>/status", methods=["PUT"])
 def update_seat_status(event_id, seat_id):
-    if event_by_id(event_id) is None:
-        return jsonify({"error": "Event not found"}), 404
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter_by(event_id=event_id).first()
+        if event is None:
+            return jsonify({"error": "Event not found"}), 404
+        seat = db.query(Seat).filter_by(seat_id=seat_id, event_id=event_id).first()
+        if seat is None:
+            return jsonify({"error": "Seat not found"}), 404
 
-    seat = None
-    for s in seats:
-        if s["seatId"] == seat_id and s["eventId"] == event_id:
-            seat = s
-            break
+        payload = request.get_json(silent=True)
+        if not payload or "status" not in payload:
+            return jsonify({"error": "status is required"}), 400
 
-    if seat is None:
-        return jsonify({"error": "Seat not found"}), 404
+        normalized = payload["status"].strip().lower()
+        if normalized not in ALLOWED_SEAT_STATUSES:
+            return jsonify({"error": "Invalid status.", "allowed": sorted(ALLOWED_SEAT_STATUSES)}), 400
 
-    payload = request.get_json(silent=True)
-    if not payload or not isinstance(payload, dict):
-        return jsonify({"error": "Request body must be a JSON object"}), 400
-
-    if "status" not in payload:
-        return jsonify({"error": "status is required"}), 400
-
-    raw = payload["status"]
-    if raw is None or not isinstance(raw, str) or not raw.strip():
-        return jsonify({"error": "status must be a non-empty string"}), 400
-
-    normalized = raw.strip().lower()
-    if normalized not in ALLOWED_SEAT_STATUSES:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid status.",
-                    "allowed": sorted(ALLOWED_SEAT_STATUSES),
-                }
-            ),
-            400,
-        )
-
-    seat["status"] = normalized
-    return (
-        jsonify(
-            {
-                "message": "Seat status updated successfully.",
-                "data": _seat_status_update_data(seat),
-            }
-        ),
-        200,
-    )
+        seat.status = normalized
+        db.commit()
+        return jsonify({"message": "Seat status updated successfully.", "data": _seat_response(seat)}), 200
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

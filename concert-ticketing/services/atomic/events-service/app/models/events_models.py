@@ -15,6 +15,7 @@ class Event(Base):
     venue_name = Column(String)
     name = Column(String, nullable=False)
     event_date = Column(DateTime, nullable=False)
+    event_timing = Column(String, nullable=False, default="")
     event_date_display = Column(String)
     status = Column(String(20), default="active")
     seatmap = Column(Integer)
@@ -48,7 +49,7 @@ class Seat(Base):
     event_id = Column(UUID(as_uuid=True), nullable=False)
     tier = Column(String(20), nullable=False)
     section_no = Column(Integer)
-    row_no = Column(String)
+    row_no = Column(Integer)
     seat_no = Column(Integer)
     base_price = Column(Numeric(10, 2), nullable=False)
     status = Column(String(20), default="available")
@@ -58,9 +59,9 @@ class Seat(Base):
             "seatId": str(self.seat_id),
             "eventId": str(self.event_id),
             "tier": self.tier,
-            "sectionNo": self.section_no,
-            "rowNo": self.row_no,
-            "seatNo": self.seat_no,
+            "sectionNo": int(self.section_no) if self.section_no is not None else None,
+            "rowNo": int(self.row_no) if self.row_no is not None else None,
+            "seatNo": int(self.seat_no) if self.seat_no is not None else None,
             "basePrice": float(self.base_price),
             "status": self.status.lower() if self.status else "available",
         }
