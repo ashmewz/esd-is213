@@ -120,6 +120,7 @@ def confirm_hold(hold_id, transaction_id):
             seat_id=hold.seat_id,
             order_id=hold.order_id,
             hold_id=hold.hold_id,
+            transaction_id=transaction_id,
             status="SOLD",
         )
 
