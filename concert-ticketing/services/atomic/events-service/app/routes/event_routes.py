@@ -2,7 +2,7 @@ import uuid
 
 from flask import Blueprint, jsonify, request
 
-from temp_data import event_by_id, events, seats
+from temp_data import event_by_id, events, seats, generate_seats, SEATMAP_TEMPLATES
 
 event_bp = Blueprint("events", __name__)
 
@@ -172,3 +172,62 @@ def update_seat_status(event_id, seat_id):
         ),
         200,
     )
+
+
+@event_bp.route("/events/<event_id>/seatmap", methods=["PUT"])
+def update_seatmap(event_id):
+    """Scenario B: Admin updates the seat map.
+
+    Computes which seats were removed, regenerates the global seats list,
+    then publishes a 'seat.map.changed' AMQP event so downstream services
+    (seat-allocation, payment, order, notification) can react via choreography.
+    """
+    event = event_by_id(event_id)
+    if event is None:
+        return jsonify({"error": "Event not found"}), 404
+
+    data = request.get_json(silent=True)
+    if not data or "seatmap" not in data:
+        return jsonify({"error": "seatmap is required"}), 400
+
+    new_seatmap = data["seatmap"]
+    if new_seatmap not in SEATMAP_TEMPLATES:
+        return jsonify({"error": f"Unknown seatmap template: {new_seatmap}"}), 400
+
+    old_seatmap = event["seatmap"]
+
+    # Compute seat IDs for old and new templates
+    old_seat_ids = {s["seatId"] for s in seats if s["eventId"] == event_id}
+    new_seats = generate_seats([{**event, "seatmap": new_seatmap}])
+    new_seat_ids = {s["seatId"] for s in new_seats}
+
+    removed_seat_ids = list(old_seat_ids - new_seat_ids)
+    available_seat_ids = [s["seatId"] for s in new_seats if s["status"] == "AVAILABLE"]
+
+    # Update event seatmap
+    event["seatmap"] = new_seatmap
+
+    # Replace seats for this event in the global list
+    seats[:] = [s for s in seats if s["eventId"] != event_id] + new_seats
+
+    # Publish choreography event
+    try:
+        from app.messaging.producer import publish_event
+        publish_event("seat.map.changed", {
+            "eventId": event_id,
+            "oldSeatmap": old_seatmap,
+            "newSeatmap": new_seatmap,
+            "removedSeatIds": removed_seat_ids,
+            "availableSeatIds": available_seat_ids,
+        })
+    except Exception as e:
+        print(f"[!] Failed to publish seat.map.changed: {e}")
+
+    return jsonify({
+        "message": "Seatmap updated.",
+        "eventId": event_id,
+        "oldSeatmap": old_seatmap,
+        "newSeatmap": new_seatmap,
+        "removedSeats": len(removed_seat_ids),
+        "newAvailableSeats": len(available_seat_ids),
+    }), 200

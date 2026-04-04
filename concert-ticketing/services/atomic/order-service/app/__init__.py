@@ -21,4 +21,8 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    # Scenario B choreography: listen for seat reassignment and refund events
+    from app.messaging.consumer import start_consumer_thread
+    start_consumer_thread()
+
     return app

@@ -16,6 +16,10 @@ def create_app():
     def health():
         return jsonify({"status": "ok"}), 200
 
+    # Scenario B choreography: listen for refund requests
+    from app.messaging.consumer import start_consumer_thread
+    start_consumer_thread()
+
     return app
 
 
