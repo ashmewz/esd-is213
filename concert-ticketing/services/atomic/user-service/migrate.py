@@ -19,5 +19,5 @@ with engine.connect() as conn:
     conn.commit()
 engine.dispose()
 
-print("[migrate] Running alembic upgrade head...")
-subprocess.run(["alembic", "upgrade", "head"], check=True)
+# print("[migrate] Running alembic upgrade head...")
+# subprocess.run(["alembic", "upgrade", "head"], check=True)
