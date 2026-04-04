@@ -13,7 +13,7 @@ class MockPaymentProvider(PaymentProvider):
 
     DECLINE_THRESHOLD = 10_000.00
 
-    def charge(self, order_id: str, user_id: str, amount: float, currency: str) -> ChargeResult:
+    def charge(self, order_id: str, user_id: str, amount: float, currency: str, card_last4: str = "") -> ChargeResult:
         if amount > self.DECLINE_THRESHOLD:
             return ChargeResult(
                 success=False,

@@ -114,10 +114,13 @@ export async function createBooking(payload) {
   // Backend only supports one seat per booking currently
   const item = items[0];
   try {
+    const cardNumber = payload.payment?.cardNumber?.replace(/\s+/g, "") ?? "";
+    const cardLast4 = cardNumber.slice(-4);
     const res = await api.post("/place-booking", {
       userId: payload.userId,
       eventId: item.eventId,
       seatId: item.seatId,
+      cardLast4,
     });
     return {
       orderId: res.data.orderId,

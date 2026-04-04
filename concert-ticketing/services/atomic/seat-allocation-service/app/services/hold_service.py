@@ -56,6 +56,9 @@ def create_hold(order_id, event_id, seat_id, ttl_seconds):
         db.commit()
         db.refresh(hold)
         return hold
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -80,6 +83,9 @@ def cancel_hold(hold_id):
         db.commit()
         db.refresh(hold)
         return hold
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -123,5 +129,8 @@ def confirm_hold(hold_id, transaction_id):
         db.commit()
         db.refresh(assignment)
         return assignment
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

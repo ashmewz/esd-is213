@@ -29,6 +29,7 @@ def create_payment():
             currency=payload["currency"],
             payment_type=payload["type"],
             idempotency_key=payload["idempotencyKey"],
+            card_last4=payload.get("cardLast4", ""),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
