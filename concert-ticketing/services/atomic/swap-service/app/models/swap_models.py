@@ -9,8 +9,10 @@ class SwapRequest(Base):
 
     request_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_id = Column(UUID(as_uuid=True), nullable=False)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
     event_id = Column(UUID(as_uuid=True), nullable=False)
     current_seat_id = Column(UUID(as_uuid=True), nullable=False)
+    current_tier = Column(String(20), nullable=True)
     desired_tier = Column(String(20))
     status = Column(String(20), default="PENDING")
     expiry = Column(DateTime)
@@ -20,8 +22,10 @@ class SwapRequest(Base):
         return {
             "requestId": str(self.request_id),
             "orderId": str(self.order_id),
+            "userId": str(self.user_id) if self.user_id else None,
             "eventId": str(self.event_id),
             "currentSeatId": str(self.current_seat_id),
+            "currentTier": self.current_tier,
             "desiredTier": self.desired_tier,
             "status": self.status
         }

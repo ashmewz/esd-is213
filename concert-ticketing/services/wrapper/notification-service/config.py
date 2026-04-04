@@ -16,7 +16,9 @@ ROUTING_KEYS = [
     "ticket.purchased",       # Scenario A: ticket purchase confirmed
     "seat.reassigned",        # Scenario B: seat reassigned after seatmap change
     "payment.refund.issued",  # Scenario B: refund issued after seatmap change
-    "swap.completed",         # Scenario C: swap completed
+    "swap.matched",           # Scenario C: swap match found — notify both users to accept/decline
+    "swap.completed",         # Scenario C: swap finalized after both accept
+    "swap.failed",            # Scenario C: swap declined by one or both users
 ]
 
 # Telegram

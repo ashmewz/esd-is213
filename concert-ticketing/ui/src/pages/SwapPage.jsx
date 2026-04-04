@@ -112,11 +112,12 @@ export default function SwapPage() {
     }
   }
 
-  async function handleRespond(requestId, response) {
+  async function handleRespond(requestId, matchId, response) {
     try {
       setActingRequestId(requestId);
       setError("");
-      await respondToSwapRequest(requestId, response);
+      // The backend needs the match ID (the swap pair ID) and the user's ID
+      await respondToSwapRequest(matchId, currentUserId, response);
       await loadData();
     } catch (err) {
       setError(err.message || "Could not update swap response.");
@@ -294,7 +295,7 @@ export default function SwapPage() {
                         {canRespond && (
                           <>
                             <button
-                              onClick={() => handleRespond(request.requestId, "accept")}
+                              onClick={() => handleRespond(request.requestId, request.matchId, "accept")}
                               disabled={actingRequestId === request.requestId}
                               className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
                             >
@@ -302,7 +303,7 @@ export default function SwapPage() {
                               Accept Offer
                             </button>
                             <button
-                              onClick={() => handleRespond(request.requestId, "decline")}
+                              onClick={() => handleRespond(request.requestId, request.matchId, "decline")}
                               disabled={actingRequestId === request.requestId}
                               className="inline-flex items-center gap-2 rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
                             >

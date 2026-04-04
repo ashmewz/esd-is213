@@ -140,6 +140,8 @@ services:
     container_name: swap-orchestration-service
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - SWAP_SERVICE_URL=http://swap-service:5000
+      - USER_SERVICE_URL=http://user-service:5000
       - ENV=production
     ports:
       - "5006:5000"

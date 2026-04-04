@@ -10,6 +10,11 @@ services:
     - /place-booking
     methods: ["POST","OPTIONS"]
     strip_path: false
+  - name: orders
+    paths:
+    - /orders
+    methods: ["GET","OPTIONS"]
+    strip_path: false
 
 - name: swap-orchestration-service
   url: http://swap-orchestration-service:5000
@@ -17,7 +22,7 @@ services:
   - name: swap-requests
     paths:
     - /swap-requests
-    methods: ["POST","OPTIONS"]
+    methods: ["GET","POST","DELETE","OPTIONS"]
     strip_path: false
   - name: swap-matches
     paths:

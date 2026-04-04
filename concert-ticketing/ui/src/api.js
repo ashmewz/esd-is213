@@ -158,11 +158,14 @@ export async function getMySwapRequests(userId) {
 }
 
 export async function createSwapRequest(payload) {
+  // Passes userId and currentTier so the backend can store and match correctly
   const res = await api.post("/swap-requests", {
-    orderId: payload.orderId,
-    eventId: payload.eventId,
+    userId:        payload.userId,
+    orderId:       payload.orderId,
+    eventId:       payload.eventId,
     currentSeatId: payload.seatId,
-    desiredTier: payload.desiredTier,
+    currentTier:   payload.currentTier,
+    desiredTier:   payload.desiredTier,
   });
   return res.data;
 }
@@ -172,8 +175,10 @@ export async function cancelSwapRequest(requestId) {
   return res.data;
 }
 
-export async function respondToSwapRequest(swapId, response) {
+export async function respondToSwapRequest(swapId, userId, response) {
+  // userId is required by the backend to record which user is responding
   const res = await api.post(`/swap-matches/${swapId}/response`, {
+    userId,
     response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
   });
   return res.data;

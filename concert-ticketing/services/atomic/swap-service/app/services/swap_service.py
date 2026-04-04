@@ -1,12 +1,11 @@
 # app/services/swap_service.py
-
 from app.core.database import SessionLocal
 from app.models.swap_models import SwapRequest, SwapMatch, SwapConfirmation
 from datetime import datetime, timedelta
 import uuid
 
 
-def create_swap_request(order_id, event_id, current_seat_id, desired_tier):
+def create_swap_request(order_id, event_id, current_seat_id, desired_tier, current_tier=None, user_id=None):
     """Create a new swap request and attempt to find a match immediately."""
     db = SessionLocal()
     try:
@@ -14,7 +13,9 @@ def create_swap_request(order_id, event_id, current_seat_id, desired_tier):
             order_id=order_id,
             event_id=event_id,
             current_seat_id=current_seat_id,
+            current_tier=current_tier,
             desired_tier=desired_tier,
+            user_id=user_id,
             expiry=datetime.utcnow() + timedelta(minutes=5),
             status="PENDING",
         )
@@ -22,18 +23,34 @@ def create_swap_request(order_id, event_id, current_seat_id, desired_tier):
         db.commit()
         db.refresh(swap_request)
 
-        match = _find_match(db, swap_request)
+        match, request_a, request_b = _find_match(db, swap_request)
+
+        match_data = None
+        if match:
+            match_data = {
+                **match.to_dict(),
+                "requestADetails": request_a.to_dict(),
+                "requestBDetails": request_b.to_dict(),
+            }
 
         return {
             "request": swap_request.to_dict(),
-            "match": match.to_dict() if match else None,
+            "match": match_data,
         }
     finally:
         db.close()
 
 
 def _find_match(db, request):
-    """Check existing pending requests for a match and create SwapMatch if found."""
+    """
+    Find a pending swap request that cross-matches with the given request.
+    A match requires:
+      - Same event
+      - candidate wants what request has (candidate.desired_tier == request.current_tier)
+      - request wants what candidate has (request.desired_tier == candidate.current_tier)
+    Falls back to desired_tier inequality when current_tier is not stored.
+    Returns (match, request_a, request_b) or (None, None, None).
+    """
     candidates = (
         db.query(SwapRequest)
         .filter(
@@ -45,7 +62,16 @@ def _find_match(db, request):
     )
 
     for candidate in candidates:
-        if request.desired_tier == candidate.desired_tier:
+        # Full cross-match when both current_tiers are stored
+        if request.current_tier and candidate.current_tier:
+            i_want_theirs = request.desired_tier == candidate.current_tier
+            they_want_mine = candidate.desired_tier == request.current_tier
+            is_match = i_want_theirs and they_want_mine
+        else:
+            # Fallback: they simply want different tiers
+            is_match = request.desired_tier != candidate.desired_tier
+
+        if is_match:
             match = SwapMatch(
                 request_a=request.request_id,
                 request_b=candidate.request_id,
@@ -59,8 +85,9 @@ def _find_match(db, request):
             db.commit()
             db.refresh(match)
 
-            return match
-    return None
+            return match, request, candidate
+
+    return None, None, None
 
 
 def submit_swap_response(swap_id, user_id, response):
@@ -83,7 +110,8 @@ def submit_swap_response(swap_id, user_id, response):
 
 
 def _evaluate_swap(db, swap_id):
-    """Evaluate swap status based on collected confirmations."""
+    """Evaluate swap status based on collected confirmations.
+    Persists the resolved status back to SwapMatch and SwapRequests."""
     confirmations = (
         db.query(SwapConfirmation)
         .filter(SwapConfirmation.swap_id == swap_id)
@@ -96,12 +124,27 @@ def _evaluate_swap(db, swap_id):
     statuses = [c.status for c in confirmations]
 
     if all(s == "ACCEPT" for s in statuses):
+        _persist_match_outcome(db, swap_id, "COMPLETED")
         return {"status": "READY_FOR_EXECUTION"}
 
     if any(s == "DECLINE" for s in statuses):
+        _persist_match_outcome(db, swap_id, "FAILED")
         return {"status": "FAILED"}
 
     return {"status": "PENDING"}
+
+
+def _persist_match_outcome(db, swap_id, outcome):
+    """Update SwapMatch and its two SwapRequests to the resolved outcome status."""
+    match = db.query(SwapMatch).filter(SwapMatch.swap_id == swap_id).first()
+    if not match or match.status in ("COMPLETED", "FAILED"):
+        return
+    match.status = outcome
+    for request_id in (match.request_a, match.request_b):
+        req = db.query(SwapRequest).filter(SwapRequest.request_id == request_id).first()
+        if req:
+            req.status = outcome
+    db.commit()
 
 
 def get_swap_request(request_id):
@@ -118,7 +161,7 @@ def get_swap_status(swap_id):
     """Get swap match details with confirmations and overall status."""
     db = SessionLocal()
     try:
-        swap = db.query(SwapMatch).get(swap_id)
+        swap = db.query(SwapMatch).filter(SwapMatch.swap_id == swap_id).first()
         if not swap:
             return None
 
@@ -133,5 +176,72 @@ def get_swap_status(swap_id):
             "confirmations": [c.to_dict() for c in confirmations],
             "status": _evaluate_swap(db, swap_id)["status"],
         }
+    finally:
+        db.close()
+
+
+def get_swap_requests_by_user(user_id):
+    """Return all swap requests for a given user, enriched with match info."""
+    db = SessionLocal()
+    try:
+        requests = (
+            db.query(SwapRequest)
+            .filter(SwapRequest.user_id == user_id)
+            .order_by(SwapRequest.created_at.desc())
+            .all()
+        )
+
+        result = []
+        for req in requests:
+            data = req.to_dict()
+
+            # Find the swap match this request belongs to (if any)
+            match = (
+                db.query(SwapMatch)
+                .filter(
+                    (SwapMatch.request_a == req.request_id) |
+                    (SwapMatch.request_b == req.request_id)
+                )
+                .first()
+            )
+
+            data["matchId"] = str(match.swap_id) if match else None
+            data["matchStatus"] = match.status if match else None
+
+            # Find the counterpart request (the other user's seat details)
+            if match:
+                other_id = (
+                    match.request_b if match.request_a == req.request_id
+                    else match.request_a
+                )
+                other = db.query(SwapRequest).filter(SwapRequest.request_id == other_id).first()
+                data["matchedSeatId"] = str(other.current_seat_id) if other else None
+                data["matchedTier"] = other.current_tier if other else None
+                data["matchedEventId"] = str(other.event_id) if other else None
+            else:
+                data["matchedSeatId"] = None
+                data["matchedTier"] = None
+                data["matchedEventId"] = None
+
+            result.append(data)
+
+        return result
+    finally:
+        db.close()
+
+
+def cancel_swap_request(request_id):
+    """Cancel a PENDING swap request. Returns the updated dict or None if not found/cancellable."""
+    db = SessionLocal()
+    try:
+        req = db.query(SwapRequest).filter(SwapRequest.request_id == request_id).first()
+        if not req:
+            return None
+        if req.status != "PENDING":
+            raise ValueError(f"Cannot cancel a request with status '{req.status}'")
+        req.status = "CANCELLED"
+        db.commit()
+        db.refresh(req)
+        return req.to_dict()
     finally:
         db.close()

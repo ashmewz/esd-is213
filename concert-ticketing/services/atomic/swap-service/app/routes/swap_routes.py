@@ -4,9 +4,33 @@ from app.services.swap_service import (
     submit_swap_response,
     get_swap_request,
     get_swap_status,
+    get_swap_requests_by_user,
+    cancel_swap_request,
 )
 
 swap_bp = Blueprint("swap", __name__)
+
+
+@swap_bp.route("/swap-requests", methods=["GET"])
+def list_swap_requests_route():
+    """Return all swap requests for a user. Query param: ?userId=<uuid>"""
+    user_id = request.args.get("userId")
+    if not user_id:
+        return jsonify({"error": "userId query param required"}), 400
+    result = get_swap_requests_by_user(user_id)
+    return jsonify(result), 200
+
+
+@swap_bp.route("/swap-requests/<request_id>", methods=["DELETE"])
+def cancel_swap_request_route(request_id):
+    """Cancel a PENDING swap request."""
+    try:
+        result = cancel_swap_request(request_id)
+        if result is None:
+            return jsonify({"error": "Swap request not found"}), 404
+        return jsonify({"message": "Cancelled", "data": result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
 
 
 @swap_bp.route("/swap", methods=["POST"])
@@ -22,6 +46,8 @@ def create_swap_request_route():
         event_id=payload["eventId"],
         current_seat_id=payload["currentSeatId"],
         desired_tier=payload["desiredTier"],
+        current_tier=payload.get("currentTier"),
+        user_id=payload.get("userId"),
     )
     return jsonify({"message": "Swap request created", "data": result}), 201
 

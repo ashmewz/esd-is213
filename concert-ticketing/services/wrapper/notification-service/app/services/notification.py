@@ -17,8 +17,15 @@ def send_notification(event_type: str, data: dict):
       - "ticket.purchased"      -> order confirmed, ticket booked
       - "seat.reassigned"       -> seat changed due to seatmap update
       - "payment.refund.issued" -> refund issued after seatmap change
+      - "swap.matched"          -> match found — notify BOTH users to accept/decline
       - "swap.completed"        -> seat swap finalized
+      - "swap.failed"           -> swap declined by one or both users
     """
+    # swap.matched has two recipients — handle separately
+    if event_type == "swap.matched":
+        _send_swap_matched(data)
+        return
+
     subject = _build_subject(event_type)
     message = _build_message(event_type, data)
     recipient_email = data.get("email")
@@ -31,12 +38,42 @@ def send_notification(event_type: str, data: dict):
         print(f"[!] No email address in payload for event '{event_type}'. Skipping email.")
 
 
+def _send_swap_matched(data: dict):
+    """
+    Notify both parties that a match was found and they need to accept or decline.
+    Sends one Telegram alert per user and an email if their address is available.
+    """
+    match_id = data.get("matchId", "N/A")
+    request_a = data.get("requestADetails", {})
+    request_b = data.get("requestBDetails", {})
+
+    subject = "🔄 Seat Swap Match Found — Action Required"
+
+    for party_label, req in [("User A", request_a), ("User B", request_b)]:
+        message = (
+            f"🔄 A seat swap match has been found!\n"
+            f"Match ID:     {match_id}\n"
+            f"Your Seat:    tier {req.get('currentTier', 'N/A')}\n"
+            f"Offered Seat: tier {req.get('desiredTier', 'N/A')}\n\n"
+            f"Please accept or decline via the app."
+        )
+        _send_telegram(message)
+
+        email = req.get("email")
+        if email:
+            _send_email(email, subject, message)
+        else:
+            print(f"[!] No email for {party_label} (userId={req.get('userId')}). Skipping email.")
+
+
 def _build_subject(event_type: str) -> str:
     subjects = {
         "ticket.purchased":      "🎟️ Your Ticket is Confirmed!",
         "seat.reassigned":       "📍 Your Seat Has Been Reassigned",
         "payment.refund.issued": "💰 Refund Issued for Your Order",
+        "swap.matched":          "🔄 Seat Swap Match Found — Action Required",
         "swap.completed":        "🔄 Your Seat Swap is Complete",
+        "swap.failed":           "❌ Your Seat Swap Was Declined",
     }
     return subjects.get(event_type, "Concert Ticketing Notification")
 
@@ -68,8 +105,13 @@ def _build_message(event_type: str, data: dict) -> str:
     elif event_type == "swap.completed":
         return (
             f"🔄 Your seat swap has been completed!\n"
-            f"Order ID:   {data.get('orderId')}\n"
-            f"New Seat:   {data.get('newSeatId', 'N/A')}"
+            f"Swap ID:    {data.get('swapId', 'N/A')}"
+        )
+    elif event_type == "swap.failed":
+        return (
+            f"❌ Your seat swap was declined by one or both parties.\n"
+            f"Swap ID:    {data.get('swapId', 'N/A')}\n"
+            f"No changes have been made to your seat."
         )
     else:
         return f"Notification: {event_type}\nDetails: {data}"
