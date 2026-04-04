@@ -21,15 +21,10 @@ api.interceptors.request.use((config) => {
 // ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
 export {
   USER_ID,
-  adminLogin,
   getMyNotifications,
   simulateSeatReassignment,
   simulateRefundIssued,
   simulateSwapMatch,
-  adminGetEvents,
-  adminCreateEvent,
-  adminUpdateEvent,
-  adminDeleteEvent,
   adminGetTierPrices,
   adminUpdateTierPrices,
   adminGetSectionConfigs,
@@ -58,11 +53,28 @@ export async function loginUser(email, password) {
       userId: user.user_id,
       username: user.username,
       email: user.email,
-      role: "customer",
+      role: user.role ?? "customer",
       token,
     };
   } catch (err) {
     const msg = err.response?.data?.error ?? "Invalid credentials";
+    throw new Error(msg);
+  }
+}
+
+export async function adminLogin(username, password) {
+  try {
+    const res = await api.post("/admin/login", { username, password });
+    const { token, user } = res.data;
+    return {
+      userId: user.user_id,
+      username: user.username,
+      email: user.email,
+      role: user.role ?? "admin",
+      token,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.error ?? "Invalid admin credentials";
     throw new Error(msg);
   }
 }
@@ -99,6 +111,26 @@ export async function getSeatmap(eventId) {
 
 export async function validateSeat(eventId, seatId) {
   const res = await api.get(`/events/${eventId}/seats/${seatId}`);
+  return res.data;
+}
+
+export async function adminGetEvents() {
+  const res = await api.get("/events", { params: { includeDeleted: true } });
+  return res.data;
+}
+
+export async function adminCreateEvent(payload) {
+  const res = await api.post("/events", payload);
+  return res.data;
+}
+
+export async function adminUpdateEvent(eventId, payload) {
+  const res = await api.put(`/events/${eventId}`, payload);
+  return res.data;
+}
+
+export async function adminDeleteEvent(eventId) {
+  const res = await api.delete(`/events/${eventId}`);
   return res.data;
 }
 

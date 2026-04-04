@@ -179,7 +179,7 @@ export default function AdminSeatmapEditor() {
 
   useEffect(() => {
     Promise.all([
-      adminGetEvents().then((evts) => evts.find((e) => e.eventId === Number(eventId))),
+      adminGetEvents().then((evts) => evts.find((e) => String(e.eventId) === String(eventId))),
       adminGetTierPrices(eventId),
       adminGetVisualSections(eventId),
     ]).then(([ev, p, vs]) => {
