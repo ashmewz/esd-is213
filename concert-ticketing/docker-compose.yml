@@ -159,30 +159,30 @@ services:
       retries: 5
       start_period: 20s
 
-  # notification-service:
-  #   build: ./services/wrapper/notification-service
-  #   container_name: notification-service
-  #   environment:
-  #     - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-  #     - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-  #     - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-  #     - SMTP_USER=${SMTP_USER}
-  #     - SMTP_PASSWORD=${SMTP_PASSWORD}
-  #     - EMAIL_FROM=${EMAIL_FROM}
-  #     - ENV=production
-  #   ports:
-  #     - "5007:5000"
-  #   networks:
-  #     - ticketing-network
-  #   depends_on:
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 20s
+  notification-service:
+    build: ./services/wrapper/notification-service
+    container_name: notification-service
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - ENV=production
+    ports:
+      - "5007:5000"
+    networks:
+      - ticketing-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   payment-service:
     build: ./services/wrapper/payment-service
@@ -231,8 +231,8 @@ services:
         condition: service_healthy
       swap-orchestration-service:
         condition: service_healthy
-      # notification-service:
-      #   condition: service_healthy
+      notification-service:
+        condition: service_healthy
     volumes:
       - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
     environment:
