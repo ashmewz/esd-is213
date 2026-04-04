@@ -20,7 +20,7 @@ _TYPE_MAP = {
 }
 
 
-def process_purchase(order_id, user_id, amount, currency, payment_type, idempotency_key):
+def process_purchase(order_id, user_id, amount, currency, payment_type, idempotency_key, card_last4=""):
     """Process a purchase payment for Scenario A.
 
     Returns the Transaction record (new or existing if idempotent retry).
@@ -84,6 +84,7 @@ def process_purchase(order_id, user_id, amount, currency, payment_type, idempote
             user_id=str(user_id),
             amount=amount,
             currency=currency,
+            card_last4=card_last4,
         )
     except Exception as exc:
         # Provider raised unexpectedly — mark as failed and surface a clean error

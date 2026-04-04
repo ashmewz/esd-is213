@@ -18,7 +18,7 @@ class PaymentProvider(ABC):
     """
 
     @abstractmethod
-    def charge(self, order_id: str, user_id: str, amount: float, currency: str) -> ChargeResult:
+    def charge(self, order_id: str, user_id: str, amount: float, currency: str, card_last4: str = "") -> ChargeResult:
         """Attempt to charge the given amount.
 
         Returns a ChargeResult indicating success or failure.

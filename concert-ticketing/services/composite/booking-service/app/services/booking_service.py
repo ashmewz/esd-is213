@@ -14,12 +14,12 @@ class BookingService:
         self.payment_client = PaymentClient()
         self.notification_client = NotificationClient()
 
-    def create_booking(self, user_id, event_id, seat_id):
+    def create_booking(self, user_id, event_id, seat_id, card_last4=""):
         seat = self.event_client.validate_seat(event_id, seat_id)
         if not seat:
             raise Exception("Invalid or unavailable seat")
 
-        seat_price = seat["basePrice"]
+        seat_price = seat.get("price") or seat.get("basePrice")
 
         order_resp = self.order_client.create_order(
             user_id, event_id, seat_id, price=seat_price
@@ -35,6 +35,7 @@ class BookingService:
             order_id=order_id,
             user_id=user_id,
             amount=seat_price,
+            card_last4=card_last4,
         )
 
         if payment.get("status") != "SUCCESS":
