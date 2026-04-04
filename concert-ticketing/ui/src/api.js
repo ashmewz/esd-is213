@@ -1,5 +1,6 @@
 import { DEFAULT_SEAT_CONFIG, generateSeatsFromConfig } from "./mock/data";
 import { DEFAULT_VENUE_SECTIONS } from "./mock/venueData";
+import { getSeatmap as getMockSeatmap } from "./mock/mockApi";
 
 export { USER_ID } from "./mock/mockApi";
 export {
@@ -59,15 +60,19 @@ export async function getEvents() {
 
 // getSeatmap fetches the real event then generates mock seats (until seat-service is wired)
 export async function getSeatmap(eventId) {
-  const event = await getEvent(eventId);
-  // Use a stable numeric seed from the UUID for mock seat generation
-  const seed = parseInt(event.eventId.replace(/-/g, "").slice(0, 8), 16) % 3 + 1;
-  const seats = generateSeatsFromConfig(seed, DEFAULT_SEAT_CONFIG);
-  return {
-    event,
-    seats,
-    visualSections: DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false })),
-  };
+  try {
+    const event = await getEvent(eventId);
+    // Use a stable numeric seed from the UUID for mock seat generation
+    const seed = parseInt(event.eventId.replace(/-/g, "").slice(0, 8), 16) % 3 + 1;
+    const seats = generateSeatsFromConfig(seed, DEFAULT_SEAT_CONFIG);
+    return {
+      event,
+      seats,
+      visualSections: DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false })),
+    };
+  } catch {
+    return getMockSeatmap(eventId);
+  }
 }
 
 export async function adminGetEvents() {

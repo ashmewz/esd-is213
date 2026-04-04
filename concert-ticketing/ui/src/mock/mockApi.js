@@ -221,7 +221,7 @@ export async function getMyNotifications(userId = USER_ID) {
         notificationId: `notif-swap-request-${request.requestId}`,
         type: "SWAP_REQUESTED",
         title: "Swap request submitted",
-        message: `Your request to swap ${request.currentSeatLabel} into ${request.desiredTier} has been submitted.`,
+        message: `Your request to swap ${request.currentSeatLabel} into ${request.desiredSectionLabel || request.desiredTier} has been submitted.`,
         createdAt: request.createdAt,
         status: "unread",
         route: "/swap",
@@ -326,7 +326,7 @@ export async function getMySwapRequests(userId = USER_ID) {
 
 export async function createSwapRequest(payload) {
   await delay(600);
-  if (!payload?.orderId || !payload?.seatId || !payload?.desiredTier) {
+  if (!payload?.orderId || !payload?.seatId || !payload?.desiredTier || !payload?.desiredSectionId) {
     throw new Error("Missing swap request details.");
   }
 
@@ -351,6 +351,9 @@ export async function createSwapRequest(payload) {
     currentSeatLabel: payload.currentSeatLabel ?? "",
     currentTier: payload.currentTier ?? "",
     desiredTier: payload.desiredTier,
+    desiredSectionId: payload.desiredSectionId,
+    desiredSectionLabel: payload.desiredSectionLabel ?? payload.desiredTier,
+    desiredSectionNo: payload.desiredSectionNo ?? null,
     seatId: payload.seatId,
     swapStatus: "pending",
     createdAt: new Date().toISOString(),
@@ -382,6 +385,7 @@ export async function simulateSwapMatch(requestId) {
 
   return storeUpdateSwapRequest(requestId, {
     swapStatus: "awaiting_confirmation",
+    matchedSectionLabel: request.desiredSectionLabel ?? request.desiredTier,
     matchedSeatLabel: `Section ${Math.max(1, (request.seatId % 7) + 1)} · Row B · Seat ${Math.max(1, (request.seatId % 20) + 1)}`,
     matchedTier: request.desiredTier,
     priceDelta: request.currentTier === request.desiredTier ? 0 : request.desiredTier === "VIP" ? 100 : request.desiredTier === "CAT1" ? 40 : -20,
