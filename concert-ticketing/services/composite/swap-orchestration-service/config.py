@@ -14,3 +14,4 @@ class Config:
     PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://payment-service:5000")
     NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://notification-service:5000")
     USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://user-service:5000")
+    SEAT_ALLOCATION_SERVICE_URL = os.getenv("SEAT_ALLOCATION_SERVICE_URL", "http://seat-allocation-service:5000")
