@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.database import SessionLocal
 from app.models.seat_allocation_models import Hold, SeatAssignment
+from sqlalchemy.exc import IntegrityError
 
 
 def _utc_now():
@@ -53,7 +54,11 @@ def create_hold(order_id, event_id, seat_id, ttl_seconds):
             status="ACTIVE",
         )
         db.add(hold)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise RuntimeError("Seat already has an active hold.")
         db.refresh(hold)
         return hold
     except Exception:
@@ -120,6 +125,7 @@ def confirm_hold(hold_id, transaction_id):
             seat_id=hold.seat_id,
             order_id=hold.order_id,
             hold_id=hold.hold_id,
+            transaction_id=transaction_id,
             status="SOLD",
         )
 

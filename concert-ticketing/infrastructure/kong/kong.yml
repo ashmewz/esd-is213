@@ -57,19 +57,6 @@ services:
     methods: ["GET","POST","PUT","OPTIONS"]
     strip_path: false
 
-- name: order-service
-  url: http://order-service:5000
-  routes:
-  - name: orders
-    paths:
-    - /orders
-    methods: ["GET","POST","PUT","OPTIONS"]
-    strip_path: false
-  - name: orders-admin
-    paths:
-    - /admin/orders
-    methods: ["GET","OPTIONS"]
-    strip_path: false
 
 - name: seat-allocation-service
   url: http://seat-allocation-service:5000
