@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -10,6 +10,10 @@ def create_app():
     app.config.from_object("config.Config")
 
     db.init_app(app)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok"}), 200
 
     # Import models so SQLAlchemy metadata is registered.
     from app.models import order_models  # noqa: F401
