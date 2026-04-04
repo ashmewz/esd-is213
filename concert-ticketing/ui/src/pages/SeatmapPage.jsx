@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getSeatmap, holdSeat, releaseHold } from "../api";
-import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X, Calendar, Ticket } from "lucide-react";
+import { ChevronLeft, RefreshCw, Check, ChevronDown, ChevronUp, X, Calendar } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import LoginPromptModal from "../components/LoginPromptModal";
@@ -151,8 +151,6 @@ function VenueMap({ sections, bySection, visibleTiers, selectedId, onSectionClic
 
 // ── Standing Pen (GA) panel ───────────────────────────────────────────────────
 function StandingPenPanel({ venueSection, sectionData, cartSeats, onGAAddToCart }) {
-  const [qty, setQty] = useState(1);
-
   const cfg     = TIERS["CAT2"];
   const penName = venueSection.id === "STD_A" ? "Standing Pen A" : "Standing Pen B";
 
@@ -165,8 +163,8 @@ function StandingPenPanel({ venueSection, sectionData, cartSeats, onGAAddToCart 
   );
 
   function handleAdd() {
-    const picks = available.slice(0, qty);
-    if (picks.length > 0) onGAAddToCart(picks);
+    const pick = available.slice(0, 1);
+    if (pick.length > 0) onGAAddToCart(pick);
   }
 
   return (
@@ -187,25 +185,13 @@ function StandingPenPanel({ venueSection, sectionData, cartSeats, onGAAddToCart 
         <p className="text-xs text-violet-500 mb-4 text-center">Unreserved. Entry is first-come, first-served.</p>
 
         <div className="flex items-center justify-center gap-3">
-          <div className="relative">
-            <select
-              value={qty}
-              onChange={(e) => setQty(Number(e.target.value))}
-              className="appearance-none border border-violet-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white pr-7 focus:outline-none focus:ring-1 focus:ring-violet-400"
-            >
-              {Array.from({ length: Math.min(10, available.length) }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>{n} {n === 1 ? "ticket" : "tickets"}</option>
-              ))}
-            </select>
-            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
-          <span className="text-sm font-semibold text-violet-900">${cfg.price * qty}.00 total</span>
+          <span className="text-sm font-semibold text-violet-900">${cfg.price}.00 / ticket</span>
           <button
             onClick={handleAdd}
             disabled={available.length === 0}
             className="px-5 py-2 bg-[#800020] hover:bg-[#6a001a] disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition"
           >
-            Add to Cart
+            Add 1 Ticket
           </button>
         </div>
       </div>
@@ -309,9 +295,7 @@ export default function SeatmapPage() {
   // Sidebar filters
   const [sidebarDate,  setSidebarDate]  = useState(date || "");
   const [sidebarTime,  setSidebarTime]  = useState(time || "");
-  const [quantity,     setQuantity]     = useState(1);
   const [dateTimeOpen, setDateTimeOpen] = useState(true);
-  const [quantityOpen, setQuantityOpen] = useState(true);
 
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(224);
@@ -405,7 +389,7 @@ export default function SeatmapPage() {
     if (seat.status !== "available" || inCartBar) return;
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatId === seat.seatId);
-      return exists ? prev.filter((s) => s.seatId !== seat.seatId) : [...prev, seat];
+      return exists ? [] : [seat]; // only one seat at a time
     });
   }
 
@@ -456,10 +440,10 @@ export default function SeatmapPage() {
   }
 
   function handleGAAddToCart(seats) {
-    // GA: auto-picked seats go straight into the cart bar (skip ticket modal)
+    // GA: auto-picked seats go straight into the cart bar (skip ticket modal), max 1
     setCartSeats((prev) => {
       const existingIds = new Set(prev.map((s) => s.seatId));
-      const fresh = seats.filter((s) => !existingIds.has(s.seatId));
+      const fresh = seats.filter((s) => !existingIds.has(s.seatId)).slice(0, 1);
       fresh.forEach((s) => holdSeat(eventId, s.seatId));
       if (fresh.length > 0) refreshSeatmap();
       return [...prev, ...fresh];
@@ -549,34 +533,6 @@ export default function SeatmapPage() {
                     </div>
                   ) : null;
                 })()}
-              </div>
-            )}
-          </div>
-
-          {/* Quantity */}
-          <div className="border-b">
-            <button
-              onClick={() => setQuantityOpen((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
-            >
-              <span className="flex items-center gap-2"><Ticket size={14} /> Quantity</span>
-              {quantityOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            {quantityOpen && (
-              <div className="px-4 pb-4">
-                <div className="relative">
-                  <select
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full appearance-none border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white pr-8 focus:outline-none focus:ring-1 focus:ring-[#800020]"
-                  >
-                    <option value={0}>Any Quantity</option>
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                      <option key={n} value={n}>{n} {n === 1 ? "Ticket" : "Tickets"}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
               </div>
             )}
           </div>

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRightLeft, CheckCircle2, RefreshCcw, XCircle } from "lucide-react";
 import {
+  getSeatmap,
   getMyOrders,
   getMySwapRequests,
   createSwapRequest,
@@ -9,8 +10,6 @@ import {
   respondToSwapRequest,
 } from "../api";
 import { useAuth } from "../context/AuthContext";
-
-const TIER_OPTIONS = ["VIP", "CAT1", "CAT2", "CAT3"];
 
 const STATUS_STYLES = {
   pending: "bg-amber-100 text-amber-800",
@@ -26,31 +25,37 @@ export default function SwapPage() {
   const [orders, setOrders] = useState([]);
   const [requests, setRequests] = useState([]);
   const [selectedTicketKey, setSelectedTicketKey] = useState("");
-  const [desiredTier, setDesiredTier] = useState("");
+  const [seatmapsByEvent, setSeatmapsByEvent] = useState({});
+  const [desiredSectionId, setDesiredSectionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [actingRequestId, setActingRequestId] = useState("");
   const [error, setError] = useState("");
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [orderData, requestData] = await Promise.all([
         getMyOrders(currentUserId),
         getMySwapRequests(currentUserId),
       ]);
+      const uniqueEventIds = [...new Set(orderData.map((order) => order.eventId).filter(Boolean))];
+      const seatmaps = await Promise.all(
+        uniqueEventIds.map(async (eventId) => [String(eventId), await getSeatmap(eventId)])
+      );
       setOrders(orderData);
       setRequests(requestData);
+      setSeatmapsByEvent(Object.fromEntries(seatmaps));
     } catch (err) {
       setError(err.message || "Could not load swap data.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentUserId]);
 
   useEffect(() => {
     loadData();
-  }, [currentUserId]);
+  }, [loadData]);
 
   const eligibleTickets = useMemo(() => (
     orders.flatMap((order) =>
@@ -67,13 +72,37 @@ export default function SwapPage() {
   ), [orders]);
 
   const selectedTicket = eligibleTickets.find((ticket) => ticket.key === selectedTicketKey) ?? null;
-  const desiredTierOptions = selectedTicket
-    ? TIER_OPTIONS.filter((tier) => tier !== selectedTicket.currentTier)
-    : [];
+  const selectedSeatmap = selectedTicket ? seatmapsByEvent[String(selectedTicket.eventId)] : null;
+  const desiredSectionOptions = useMemo(() => {
+    if (!selectedTicket || !selectedSeatmap) return [];
+
+    const sectionTiers = new Map();
+    selectedSeatmap.seats?.forEach((seat) => {
+      if (!sectionTiers.has(seat.sectionNo)) {
+        sectionTiers.set(seat.sectionNo, seat.tier);
+      }
+    });
+
+    return (selectedSeatmap.visualSections ?? [])
+      .filter((section) => section.hidden !== true)
+      .map((section) => {
+        const tier = sectionTiers.get(section.dataSection) ?? "";
+        const sectionLabel = String(section.label ?? section.id ?? "").replace(/\n/g, " ");
+        return {
+          value: section.id,
+          sectionId: section.id,
+          sectionLabel,
+          dataSection: section.dataSection,
+          tier,
+          label: tier ? `${sectionLabel} · ${tier}` : sectionLabel,
+        };
+      });
+  }, [selectedTicket, selectedSeatmap]);
+  const desiredSection = desiredSectionOptions.find((section) => section.value === desiredSectionId) ?? null;
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!selectedTicket || !desiredTier) return;
+    if (!selectedTicket || !desiredSection) return;
 
     setSubmitting(true);
     setError("");
@@ -86,11 +115,14 @@ export default function SwapPage() {
         seatId: selectedTicket.seatId,
         currentTier: selectedTicket.currentTier,
         currentSeatLabel: selectedTicket.seatLabel,
-        desiredTier,
+        desiredTier: desiredSection.tier,
+        desiredSectionId: desiredSection.sectionId,
+        desiredSectionLabel: desiredSection.sectionLabel,
+        desiredSectionNo: desiredSection.dataSection,
       });
 
       setSelectedTicketKey("");
-      setDesiredTier("");
+      setDesiredSectionId("");
       await loadData();
     } catch (err) {
       setError(err.message || "Could not submit swap request.");
@@ -145,7 +177,7 @@ export default function SwapPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Swap Tickets</h1>
                 <p className="mt-2 text-sm leading-6 text-gray-500">
-                  Pick one of your purchased seats and submit a request to swap into a different tier.
+                  Pick one of your purchased seats and submit a request to swap into another tier or the same tier if you want a different row or seat.
                 </p>
               </div>
             </div>
@@ -157,7 +189,7 @@ export default function SwapPage() {
                   value={selectedTicketKey}
                   onChange={(e) => {
                     setSelectedTicketKey(e.target.value);
-                    setDesiredTier("");
+                    setDesiredSectionId("");
                   }}
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#800020]"
                 >
@@ -171,16 +203,16 @@ export default function SwapPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Desired tier</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Desired section</label>
                 <select
-                  value={desiredTier}
-                  onChange={(e) => setDesiredTier(e.target.value)}
-                  disabled={!selectedTicket}
+                  value={desiredSectionId}
+                  onChange={(e) => setDesiredSectionId(e.target.value)}
+                  disabled={!selectedTicket || desiredSectionOptions.length === 0}
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#800020] disabled:bg-gray-50"
                 >
-                  <option value="">Choose a different tier</option>
-                  {desiredTierOptions.map((tier) => (
-                    <option key={tier} value={tier}>{tier}</option>
+                  <option value="">Choose a seatmap section</option>
+                  {desiredSectionOptions.map((section) => (
+                    <option key={section.value} value={section.value}>{section.label}</option>
                   ))}
                 </select>
               </div>
@@ -189,6 +221,9 @@ export default function SwapPage() {
                 <div className="rounded-2xl border border-[#ead7dd] bg-[#fff8fa] p-4 text-sm text-gray-700">
                   <p><span className="font-semibold text-gray-900">Current ticket:</span> {selectedTicket.seatLabel}</p>
                   <p className="mt-1"><span className="font-semibold text-gray-900">Current tier:</span> {selectedTicket.currentTier}</p>
+                  {desiredSection && (
+                    <p className="mt-1"><span className="font-semibold text-gray-900">Requested section:</span> {desiredSection.sectionLabel} {desiredSection.tier ? `(${desiredSection.tier})` : ""}</p>
+                  )}
                 </div>
               )}
 
@@ -200,7 +235,7 @@ export default function SwapPage() {
 
               <button
                 type="submit"
-                disabled={!selectedTicket || !desiredTier || submitting}
+                disabled={!selectedTicket || !desiredSection || submitting}
                 className="rounded-xl bg-[#800020] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#6a001a] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? "Submitting..." : "Request Swap"}
@@ -256,11 +291,20 @@ export default function SwapPage() {
                       <div className="mt-4 grid gap-3 text-sm text-gray-600">
                         <p><span className="font-semibold text-gray-900">Order:</span> {request.orderId}</p>
                         <p><span className="font-semibold text-gray-900">Current tier:</span> {request.currentTier}</p>
+                        {request.desiredSectionLabel && (
+                          <p><span className="font-semibold text-gray-900">Requested section:</span> {request.desiredSectionLabel}</p>
+                        )}
                         <p><span className="font-semibold text-gray-900">Requested tier:</span> {request.desiredTier}</p>
                       </div>
 
                       {request.swapStatus === "awaiting_confirmation" && (
                         <div className="mt-4 rounded-2xl border border-[#dbe5ff] bg-[#f5f8ff] p-4 text-sm text-gray-700">
+                          {request.matchedSectionLabel && (
+                            <p>
+                              <span className="font-semibold text-gray-900">Matched section:</span>{" "}
+                              {request.matchedSectionLabel}
+                            </p>
+                          )}
                           <p>
                             <span className="font-semibold text-gray-900">Matched seat:</span>{" "}
                             {request.matchedSeatLabel}
