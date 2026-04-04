@@ -40,6 +40,22 @@ def login_user():
         return jsonify({"error": str(e)}), 401
 
 
+@user_bp.route("/admin/login", methods=["POST"])
+def login_admin():
+    db = next(get_db())
+    try:
+        data = request.json
+        if not data or "username" not in data or "password" not in data:
+            return jsonify({"error": "username and password are required"}), 400
+        token, user = UserService.login_admin(db, data["username"], data["password"])
+        return jsonify({
+            "token": token,
+            "user": user.to_dict(),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
+
+
 @user_bp.route("/users/<user_id>", methods=["GET"])
 def get_user(user_id):
     db = next(get_db())

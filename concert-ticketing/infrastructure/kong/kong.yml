@@ -38,6 +38,11 @@ services:
     - /users/login
     methods: ["POST","OPTIONS"]
     strip_path: false
+  - name: admin-login
+    paths:
+    - /admin/login
+    methods: ["POST","OPTIONS"]
+    strip_path: false
 
 - name: user-service
   url: http://user-service:5000
