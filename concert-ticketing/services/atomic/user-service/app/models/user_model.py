@@ -15,8 +15,8 @@ class User(Base):
 
     def to_dict(self):
         return {
-            "user_id": self.user_id,
+            "user_id": str(self.user_id),
             "username": self.username,
             "email": self.email,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
