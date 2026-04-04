@@ -21,13 +21,12 @@ class BookingService:
         if not seat:
             raise Exception("Invalid or unavailable seat")
 
-        seat_price = seat.get("price") or seat.get("basePrice")
+        seat_price = seat.get("basePrice") or seat.get("price")
 
         order_resp = self.order_client.create_order(
             user_id, event_id, seat_id, price=seat_price
         )
-        order = order_resp.get("data", order_resp)
-        order_id = order["orderId"]
+        order_id = order_resp["orderId"]
 
         hold_resp = self.seat_client.create_hold(order_id, event_id, seat_id)
         hold = hold_resp.get("data", hold_resp)
@@ -47,18 +46,20 @@ class BookingService:
                 "Payment failed; hold cancelled and order status set to CANCELLED."
             )
 
-        self.seat_client.confirm_seat(hold_id, payment["transactionId"])
         event_res = self.event_client.update_seat_status(event_id, seat_id, "sold")
-
         if event_res.status_code != 200:
+            self.seat_client.cancel_hold(hold_id)
             self.order_client.cancel_order(order_id)
-            raise RuntimeError(
-                "Seat was confirmed, but Event Service failed to update seat status. "
-                "Order was set to CANCELLED; manual reconciliation may be required."
-            )
+            raise RuntimeError("Failed to update seat status; hold cancelled and order cancelled.")
 
-        self.order_client.confirm_order(order_id)
+        self.seat_client.confirm_seat(hold_id, payment["transactionId"])
 
+        try:
+            self.order_client.confirm_order(order_id)
+        except Exception:
+            pass
+
+        event = self.event_client.get_event(event_id)
         user = self.user_client.get_user(user_id)
 
         publish_event("ticket.purchased", {
