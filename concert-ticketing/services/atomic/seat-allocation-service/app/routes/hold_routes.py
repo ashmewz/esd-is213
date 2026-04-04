@@ -20,6 +20,13 @@ def create_hold_route():
     if order_id is None or event_id is None or seat_id is None or ttl_seconds is None:
         return jsonify({"error": "orderId, eventId, seatId, and ttlSeconds are required."}), 400
 
+    if isinstance(order_id, bool):
+        return jsonify({"error": "orderId must be a numeric order identifier."}), 400
+    try:
+        order_id = int(order_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "orderId must be a valid integer."}), 400
+
     try:
         hold = create_hold(order_id, event_id, seat_id, ttl_seconds)
         return (
