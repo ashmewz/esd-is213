@@ -16,17 +16,17 @@ services:
   routes:
   - name: swap-requests
     paths:
-    - /swap-requests
-    methods: ["POST","OPTIONS"]
+      - /swap-requests
+    methods: ["GET","POST","DELETE","OPTIONS"]
     strip_path: false
   - name: swap-matches
     paths:
-    - /swap-matches
-    methods: ["POST","OPTIONS"]
+      - /swap-matches
+    methods: ["GET","POST","DELETE","OPTIONS"]
     strip_path: false
   - name: swap-status
     paths:
-    - /swap
+      - /swap
     methods: ["GET","OPTIONS"]
     strip_path: false
 
