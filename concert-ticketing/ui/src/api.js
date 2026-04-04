@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
+// ── Auth / Admin / Notifications (mock only) ────────────────────────────────
 export {
   USER_ID,
   adminLogin,
@@ -38,21 +38,19 @@ export {
   adminSetVisualSections,
 } from "./mock/mockApi";
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// ── Auth ───────────────────────────────────────────────────────────────────
 export async function registerUser(username, email, password) {
   try {
     const res = await api.post("/users", { username, email, password });
     return res.data;
   } catch (err) {
-    const msg = err.response?.data?.error ?? "Registration failed";
-    throw new Error(msg);
+    throw new Error(err.response?.data?.error ?? "Registration failed");
   }
 }
 
 export async function loginUser(email, password) {
   try {
     const res = await api.post("/users/login", { email, password });
-    // res.data = { token, user: { user_id, username, email, ... } }
     const { token, user } = res.data;
     return {
       userId: user.user_id,
@@ -62,12 +60,11 @@ export async function loginUser(email, password) {
       token,
     };
   } catch (err) {
-    const msg = err.response?.data?.error ?? "Invalid credentials";
-    throw new Error(msg);
+    throw new Error(err.response?.data?.error ?? "Invalid credentials");
   }
 }
 
-// ── Events ──────────────────────────────────────────────────────────────────
+// ── Events ─────────────────────────────────────────────────────────────────
 export async function getEvents() {
   const res = await api.get("/events");
   return res.data;
@@ -76,10 +73,11 @@ export async function getEvents() {
 export async function getEvent(eventId) {
   const res = await api.get(`/events/${eventId}`);
   const event = res.data;
-  // Normalise: backend stores a single `date` string; UI expects `dates: [{ dateId, times }]`
+
   if (event && event.date && !event.dates) {
     event.dates = [{ dateId: event.date, times: ["19:00"] }];
   }
+
   return event;
 }
 
@@ -88,12 +86,13 @@ export async function getSeatmap(eventId) {
     api.get(`/events/${eventId}/seats`),
     api.get(`/events/${eventId}`),
   ]);
+
   const event = eventRes.data;
+
   if (event && event.date && !event.dates) {
     event.dates = [{ dateId: event.date, times: ["19:00"] }];
   }
-  // Normalise to match shape the UI expects: { seats, event, visualSections }
-  // Pass null so SeatmapPage falls back to its built-in VENUE_SECTIONS constant
+
   return { seats: seatsRes.data, event, visualSections: null };
 }
 
@@ -102,7 +101,7 @@ export async function validateSeat(eventId, seatId) {
   return res.data;
 }
 
-// ── Booking ─────────────────────────────────────────────────────────────────
+// ── Booking ────────────────────────────────────────────────────────────────
 export async function createBooking(payload) {
   const items = payload?.items ?? [];
   if (items.length === 0) {
@@ -111,59 +110,111 @@ export async function createBooking(payload) {
     throw error;
   }
 
-  // Backend only supports one seat per booking currently
   const item = items[0];
+
   try {
     const cardNumber = payload.payment?.cardNumber?.replace(/\s+/g, "") ?? "";
     const cardLast4 = cardNumber.slice(-4);
+
     const res = await api.post("/place-booking", {
       userId: payload.userId,
       eventId: item.eventId,
       seatId: item.seatId,
       cardLast4,
     });
+
     return {
       orderId: res.data.orderId,
       status: res.data.status,
     };
   } catch (err) {
-    const msg = err.response?.data?.error ?? "Payment failed";
-    const error = new Error(msg);
+    const error = new Error(err.response?.data?.error ?? "Payment failed");
     error.code = "PAYMENT_FAILED";
     throw error;
   }
 }
 
-// ── Orders ───────────────────────────────────────────────────────────────────
+// ── Orders ─────────────────────────────────────────────────────────────────
 export async function getMyOrders(userId) {
   const res = await api.get(`/orders/${userId}`);
   return res.data;
 }
 
-// ── Swap ─────────────────────────────────────────────────────────────────────
+// ── Swap (ORCHESTRATION SERVICE) ───────────────────────────────────────────
+
+// Get user's swap requests
 export async function getMySwapRequests(userId) {
   const res = await api.get(`/swap-requests?userId=${userId}`);
   return res.data;
 }
 
+// Create swap request (Step C2)
 export async function createSwapRequest(payload) {
   const res = await api.post("/swap-requests", {
     orderId: payload.orderId,
     eventId: payload.eventId,
     currentSeatId: payload.seatId,
     desiredTier: payload.desiredTier,
+    currentTier: payload.currentTier, // important for matching
   });
   return res.data;
 }
 
+// Cancel swap request
 export async function cancelSwapRequest(requestId) {
   const res = await api.delete(`/swap-requests/${requestId}`);
   return res.data;
 }
 
-export async function respondToSwapRequest(swapId, response) {
+// Respond to swap (ACCEPT / DECLINE) — FIXED (needs userId)
+export async function respondToSwapRequest(swapId, userId, response) {
   const res = await api.post(`/swap-matches/${swapId}/response`, {
-    response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
+    userId,
+    response: response.toUpperCase(),
+  });
+  return res.data;
+}
+
+// Get swap status
+export async function getSwapStatus(swapId) {
+  const res = await api.get(`/swap-matches/${swapId}`);
+  return res.data;
+}
+
+// ── Seat Allocation (HOLDS + EXECUTION) ───────────────────────────────────
+
+// Create hold (Step C20)
+export async function createHold(orderId, eventId, seatId, ttlSeconds) {
+  const res = await api.post("/holds", {
+    orderId,
+    eventId,
+    seatId,
+    ttlSeconds,
+  });
+  return res.data;
+}
+
+// Cancel hold (compensation)
+export async function cancelHold(holdId) {
+  const res = await api.delete(`/holds/${holdId}`);
+  return res.data;
+}
+
+// Confirm hold (Step C22)
+export async function confirmHold(holdId, transactionId) {
+  const res = await api.post(`/holds/${holdId}/confirm`, {
+    transactionId,
+  });
+  return res.data;
+}
+
+// Execute swap (Step C23 → C24)
+export async function executeSwap(matchId, orderA, orderB, seatA, seatB) {
+  const res = await api.post(`/swaps/${matchId}/execute`, {
+    orderA,
+    orderB,
+    seatA,
+    seatB,
   });
   return res.data;
 }
