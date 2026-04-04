@@ -86,7 +86,7 @@ services:
       start_period: 30s
 
   user-service:
-    build: ./services/atomic/user-service
+    build: ./grpc/user-service
     container_name: user-service
     restart: on-failure
     environment:
@@ -94,14 +94,16 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
     ports:
+      - "5004:5000"   # REST
       - "50051:50051"   # gRPC
     networks:
       - ticketing-network
+      - grpc-network
     depends_on:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -216,6 +218,7 @@ services:
       - "8001:8001"  # Admin
     networks:
       - ticketing-network
+      - grpc-network
     depends_on:
       events-service:
         condition: service_healthy
@@ -252,4 +255,6 @@ services:
 
 networks:
   ticketing-network:
+    driver: bridge
+  grpc-network:
     driver: bridge

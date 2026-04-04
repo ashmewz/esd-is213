@@ -31,7 +31,7 @@ services:
     strip_path: false
 
 - name: user-service-login
-  url: grpc://user-service:50051  
+  url: grpc://user-service:5000
   routes:
     - name: user-login
       paths:
@@ -40,7 +40,7 @@ services:
       strip_path: false
 
 - name: user-service
-  url: grpc://user-service:50051  
+  url: grpc://user-service:5000
   routes:
     - name: users
       paths:
