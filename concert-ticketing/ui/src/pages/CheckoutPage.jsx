@@ -506,44 +506,59 @@ export default function CheckoutPage() {
               <p className="text-sm text-gray-400 text-center mt-8">Your cart is empty.</p>
             ) : (
               <>
-                {cartItems.map(({ seat, event, date, time }) => (
+                {cartItems.map(({ seat, event, date, time }) => {
+                  const seatPrice = seat.price ?? seat.basePrice;
+                  return (
                   <div key={seat.seatId} className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
-                    <div className="flex gap-3 mb-3">
-                      <div className="w-14 h-14 bg-gray-200 rounded overflow-hidden shrink-0 flex items-center justify-center text-2xl">
-                        🎵
-                      </div>
+                    {/* Event header */}
+                    <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <p className="font-semibold text-sm text-gray-800 leading-tight">{event.name}</p>
-                          <button onClick={() => removeFromCart(seat.seatId)} className="text-gray-400 hover:text-red-500 ml-1 shrink-0">
-                            <X size={13} />
-                          </button>
-                        </div>
+                        <p className="font-semibold text-sm text-gray-800 leading-tight">{event.name}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{event.venueName ?? event.venue}</p>
-                        <p className="text-xs text-gray-500">{date}, {time}</p>
+                        <p className="text-xs text-gray-500">{date} · {time}</p>
+                      </div>
+                      <button onClick={() => removeFromCart(seat.seatId)} className="text-gray-400 hover:text-red-500 ml-2 shrink-0">
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    {/* Seat details */}
+                    <div className="bg-white border border-gray-200 rounded-md px-3 py-2 mb-3 text-xs text-gray-600 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Tier</span>
+                        <span className="font-medium text-gray-800">{seat.tier}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Section</span>
+                        <span className="font-medium text-gray-800">{seat.sectionNo}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Row</span>
+                        <span className="font-medium text-gray-800">{seat.rowNo}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Seat</span>
+                        <span className="font-medium text-gray-800">{seat.seatNo}</span>
                       </div>
                     </div>
-                    <div className="text-right mb-2">
-                      <span
-                        onClick={() => navigate(`/events/${event.eventId}`)}
-                        className="text-xs text-[#800020] underline cursor-pointer hover:text-[#6a001a]"
-                      >(Add Ticket)</span>
-                    </div>
+
+                    {/* Pricing */}
                     <div className="flex justify-between text-sm text-gray-700 mb-1">
-                      <span>1 x Adult (${seat.basePrice})</span>
-                      <span>${seat.basePrice}.00</span>
+                      <span>1 x Adult</span>
+                      <span>${seatPrice}.00</span>
                     </div>
                     <div className="flex justify-between text-xs text-gray-400">
-                      <span>(+${seat.basePrice + FEE}), Seat: {seat.rowNo}, {seat.seatNo}</span>
-                      <span>+ ${FEE}.00</span>
+                      <span>Booking fee</span>
+                      <span>+${FEE}.00</span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 <div className="border-t border-gray-200 pt-4 space-y-2">
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Subtotal:</span>
-                    <span>${cartTotal}.00</span>
+                    <span>${cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Delivery:</span>
@@ -551,7 +566,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-200">
                     <span>TOTAL:</span>
-                    <span>${cartTotal}.00</span>
+                    <span>${cartTotal.toFixed(2)}</span>
                   </div>
                 </div>
               </>

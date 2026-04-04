@@ -325,10 +325,30 @@ export default function SeatmapPage() {
   }
 
   function handleProceedToCheckout() {
-    if (!isAuthenticated) { setShowLoginModal(true); return; }
+    if (!isAuthenticated) {
+      // Persist the selected seat so we can restore it after login
+      sessionStorage.setItem("pendingSeat", JSON.stringify(selectedSeat));
+      setShowLoginModal(true);
+      return;
+    }
     addToCart([{ seat: selectedSeat, event: data.event, date, time }]);
     navigate("/checkout");
   }
+
+  // After returning from login, auto-proceed if there's a pending seat
+  useEffect(() => {
+    if (!isAuthenticated || !data) return;
+    const raw = sessionStorage.getItem("pendingSeat");
+    if (!raw) return;
+    sessionStorage.removeItem("pendingSeat");
+    try {
+      const seat = JSON.parse(raw);
+      addToCart([{ seat, event: data.event, date, time }]);
+      navigate("/checkout");
+    } catch {
+      // ignore malformed data
+    }
+  }, [isAuthenticated, data]);
 
   function toggleTier(tier) {
     setActiveTiers((prev) => {
