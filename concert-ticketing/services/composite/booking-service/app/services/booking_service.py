@@ -3,6 +3,7 @@ from app.clients.seat_client import SeatClient
 from app.clients.order_client import OrderClient
 from app.clients.payment_client import PaymentClient
 from app.clients.notification_client import NotificationClient
+from app.clients.user_client import UserClient
 from app.messaging.rabbitmq import publish_event
 
 
@@ -13,11 +14,14 @@ class BookingService:
         self.order_client = OrderClient()
         self.payment_client = PaymentClient()
         self.notification_client = NotificationClient()
+        self.user_client = UserClient()
 
     def create_booking(self, user_id, event_id, seat_id):
         seat = self.event_client.validate_seat(event_id, seat_id)
         if not seat:
             raise Exception("Invalid or unavailable seat")
+
+        event = self.event_client.get_event(event_id)
 
         seat_price = seat["basePrice"]
 
@@ -56,9 +60,16 @@ class BookingService:
 
         self.order_client.confirm_order(order_id)
 
+        user = self.user_client.get_user(user_id)
+
         publish_event("ticket.purchased", {
             "orderId": order_id,
-            "userId": user_id
+            "userId": user_id,
+            "seatId": seat_id,
+            "eventName": event.get("name") if event else None,
+            "venue": event.get("venueName") if event else None,
+            "eventDate": event.get("date") if event else None,
+            "email": user.get("email") if user else None,
         })
 
         try:

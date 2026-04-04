@@ -22,6 +22,7 @@ services:
   events-service:
     build: ./services/atomic/events-service
     container_name: events-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -43,6 +44,7 @@ services:
   seat-allocation-service:
     build: ./services/atomic/seat-allocation-service
     container_name: seat-allocation-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -64,6 +66,7 @@ services:
   swap-service:
     build: ./services/atomic/swap-service
     container_name: swap-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -85,6 +88,7 @@ services:
   user-service:
     build: ./services/atomic/user-service
     container_name: user-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -106,6 +110,7 @@ services:
   order-service:
     build: ./services/atomic/order-service
     container_name: order-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -207,6 +212,7 @@ services:
   payment-service:
     build: ./services/wrapper/payment-service
     container_name: payment-service
+    restart: on-failure
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
