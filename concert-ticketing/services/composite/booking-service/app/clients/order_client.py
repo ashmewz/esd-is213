@@ -13,3 +13,9 @@ class OrderClient:
             f"{Config.ORDER_SERVICE_URL}/orders/{order_id}/status",
             json={"status": "CONFIRMED"}
         ).json()
+
+    def cancel_order(self, order_id):
+        return requests.put(
+            f"{Config.ORDER_SERVICE_URL}/orders/{order_id}/status",
+            json={"status": "CANCELLED"}
+        ).json()
