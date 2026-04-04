@@ -62,15 +62,18 @@ class BookingService:
         event = self.event_client.get_event(event_id)
         user = self.user_client.get_user(user_id)
 
-        publish_event("ticket.purchased", {
-            "orderId": order_id,
-            "userId": user_id,
-            "seatId": seat_id,
-            "eventName": event.get("name") if event else None,
-            "venue": event.get("venueName") if event else None,
-            "eventDate": event.get("date") if event else None,
-            "email": user.get("email") if user else None,
-        })
+        try:
+            publish_event("ticket.purchased", {
+                "orderId": order_id,
+                "userId": user_id,
+                "seatId": seat_id,
+                "eventName": event.get("name") if event else None,
+                "venue": event.get("venueName") if event else None,
+                "eventDate": event.get("date") if event else None,
+                "email": user.get("email") if user else None,
+            })
+        except Exception:
+            pass
 
         try:
             self.notification_client.send_notification({
