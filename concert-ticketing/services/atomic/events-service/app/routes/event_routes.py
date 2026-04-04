@@ -54,6 +54,14 @@ def create_event():
     return jsonify(new_event), 201
 
 
+@event_bp.route("/events/<event_id>")
+def get_event(event_id):
+    event = event_by_id(event_id)
+    if event is None:
+        return jsonify({"error": "Event not found"}), 404
+    return jsonify(event), 200
+
+
 @event_bp.route("/events/<event_id>", methods=["PUT"])
 def update_event(event_id):
     event = event_by_id(event_id)
