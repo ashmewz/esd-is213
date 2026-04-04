@@ -1,29 +1,39 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../api";
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError("");
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
-    setSubmitted(true);
+    setLoading(true);
+    try {
+      await registerUser(form.name, form.email, form.password);
+      navigate("/login", { state: { registered: true } });
+    } catch (err) {
+      setError(err.message || "Registration failed.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -76,17 +86,12 @@ export default function RegisterPage() {
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            {submitted && (
-              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Registration details captured for {form.email}. You can return to sign in.
-              </div>
-            )}
-
             <button
               type="submit"
-              className="w-full rounded-xl bg-[#c20029] px-6 py-3.5 text-base font-bold text-white transition hover:bg-[#a70023]"
+              disabled={loading}
+              className="w-full rounded-xl bg-[#c20029] px-6 py-3.5 text-base font-bold text-white transition hover:bg-[#a70023] disabled:opacity-50"
             >
-              Register
+              {loading ? "Registering..." : "Register"}
             </button>
 
             <p className="text-center text-base text-gray-800">

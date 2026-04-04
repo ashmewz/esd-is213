@@ -2,10 +2,25 @@ import axios from "axios";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 
+// Attach JWT token to every request if present
+api.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("stagepass_user");
+  if (raw) {
+    try {
+      const user = JSON.parse(raw);
+      if (user?.token) {
+        config.headers.Authorization = `Bearer ${user.token}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return config;
+});
+
 // ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
 export {
   USER_ID,
-  customerLogin,
   adminLogin,
   getMyNotifications,
   simulateSeatReassignment,
@@ -22,6 +37,35 @@ export {
   adminGetVisualSections,
   adminSetVisualSections,
 } from "./mock/mockApi";
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+export async function registerUser(username, email, password) {
+  try {
+    const res = await api.post("/users", { username, email, password });
+    return res.data;
+  } catch (err) {
+    const msg = err.response?.data?.error ?? "Registration failed";
+    throw new Error(msg);
+  }
+}
+
+export async function loginUser(email, password) {
+  try {
+    const res = await api.post("/users/login", { email, password });
+    // res.data = { token, user: { user_id, username, email, ... } }
+    const { token, user } = res.data;
+    return {
+      userId: user.user_id,
+      username: user.username,
+      email: user.email,
+      role: "customer",
+      token,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.error ?? "Invalid credentials";
+    throw new Error(msg);
+  }
+}
 
 // ── Events ──────────────────────────────────────────────────────────────────
 export async function getEvents() {
