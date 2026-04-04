@@ -129,7 +129,18 @@ export async function createBooking(payload) {
   } catch (err) {
     const msg = err.response?.data?.error ?? "Payment failed";
     const error = new Error(msg);
-    error.code = "PAYMENT_FAILED";
+    const lower = msg.toLowerCase();
+    if (lower.includes("unavailable seat") || lower.includes("invalid or unavailable")) {
+      error.code = "SEAT_UNAVAILABLE";
+    } else if (lower.includes("payment failed")) {
+      error.code = "PAYMENT_FAILED";
+    } else if (lower.includes("hold expired")) {
+      error.code = "HOLD_EXPIRED";
+    } else if (lower.includes("refund")) {
+      error.code = "REFUND_REQUIRED";
+    } else {
+      error.code = "UNKNOWN_ERROR";
+    }
     throw error;
   }
 }
