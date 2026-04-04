@@ -231,8 +231,8 @@ services:
         condition: service_healthy
       swap-orchestration-service:
         condition: service_healthy
-      # notification-service:
-      #   condition: service_healthy
+      notification-service:
+        condition: service_healthy
     volumes:
       - ./infrastructure/kong/kong.yml:/etc/kong/kong.yml
     environment:

@@ -2,7 +2,6 @@ from app.clients.event_client import EventClient
 from app.clients.seat_client import SeatClient
 from app.clients.order_client import OrderClient
 from app.clients.payment_client import PaymentClient
-from app.clients.notification_client import NotificationClient
 from app.clients.user_client import UserClient
 from app.messaging.rabbitmq import publish_event
 
@@ -13,7 +12,6 @@ class BookingService:
         self.seat_client = SeatClient()
         self.order_client = OrderClient()
         self.payment_client = PaymentClient()
-        self.notification_client = NotificationClient()
         self.user_client = UserClient()
 
     def create_booking(self, user_id, event_id, seat_id, card_last4=""):
@@ -112,9 +110,15 @@ class BookingService:
 
         # ── Step A18: Direct notification (best-effort) ──
         try:
-            self.notification_client.send_notification({
+            publish_event("ticket.purchased", {
+                "orderId": order_id,
                 "userId": user_id,
                 "message": f"Your booking for {event.get('name', 'the event')} is confirmed!",
+                "seatId": seat_id,
+                "eventName": event.get("name") if event else None,
+                "venue": event.get("venueName") if event else None,
+                "eventDate": event.get("date") if event else None,
+                "email": user.get("email") if user else None,
             })
         except Exception:
             pass
