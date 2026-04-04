@@ -1,11 +1,14 @@
 from flask import Flask, jsonify
 from app.routes.user_routes import user_bp
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:5173"])
 
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
+
 
 app.register_blueprint(user_bp)
 

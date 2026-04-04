@@ -1,6 +1,14 @@
 import axios from "axios";
 
-const api = axios.create({ baseURL: "http://localhost:8000" });
+const userApi = axios.create({ baseURL: "http://localhost:5004" });
+const eventsApi = axios.create({ baseURL: "http://localhost:5001" });
+const seatApi = axios.create({ baseURL: "http://localhost:5002" });
+const swapApi = axios.create({ baseURL: "http://localhost:5003" });
+const bookingApi = axios.create({ baseURL: "http://localhost:5005" });
+const swapOrchApi = axios.create({ baseURL: "http://localhost:5006" });
+const paymentApi = axios.create({ baseURL: "http://localhost:5008" });
+
+const api = axios.create({ baseURL: "http://localhost:5000" });
 
 // Attach JWT token to every request if present
 api.interceptors.request.use((config) => {
@@ -41,7 +49,7 @@ export {
 // ── Auth ───────────────────────────────────────────────────────────────────
 export async function registerUser(username, email, password) {
   try {
-    const res = await api.post("/users", { username, email, password });
+    const res = await userApi.post("/users", { username, email, password });
     return res.data;
   } catch (err) {
     throw new Error(err.response?.data?.error ?? "Registration failed");
@@ -50,7 +58,7 @@ export async function registerUser(username, email, password) {
 
 export async function loginUser(email, password) {
   try {
-    const res = await api.post("/users/login", { email, password });
+    const res = await userApi.post("/users/login", { email, password });
     const { token, user } = res.data;
     return {
       userId: user.user_id,
@@ -66,12 +74,12 @@ export async function loginUser(email, password) {
 
 // ── Events ─────────────────────────────────────────────────────────────────
 export async function getEvents() {
-  const res = await api.get("/events");
+  const res = await eventsApi.get("/events");
   return res.data;
 }
 
 export async function getEvent(eventId) {
-  const res = await api.get(`/events/${eventId}`);
+  const res = await eventsApi.get(`/events/${eventId}`);
   const event = res.data;
 
   if (event && event.date && !event.dates) {
@@ -83,8 +91,8 @@ export async function getEvent(eventId) {
 
 export async function getSeatmap(eventId) {
   const [seatsRes, eventRes] = await Promise.all([
-    api.get(`/events/${eventId}/seats`),
-    api.get(`/events/${eventId}`),
+    eventsApi.get(`/events/${eventId}/seats`),
+    eventsApi.get(`/events/${eventId}`),
   ]);
 
   const event = eventRes.data;
@@ -97,7 +105,7 @@ export async function getSeatmap(eventId) {
 }
 
 export async function validateSeat(eventId, seatId) {
-  const res = await api.get(`/events/${eventId}/seats/${seatId}`);
+  const res = await eventsApi.get(`/events/${eventId}/seats/${seatId}`);
   return res.data;
 }
 
@@ -116,7 +124,7 @@ export async function createBooking(payload) {
     const cardNumber = payload.payment?.cardNumber?.replace(/\s+/g, "") ?? "";
     const cardLast4 = cardNumber.slice(-4);
 
-    const res = await api.post("/place-booking", {
+    const res = await bookingApi.post("/place-booking", {
       userId: payload.userId,
       eventId: item.eventId,
       seatId: item.seatId,
@@ -156,13 +164,13 @@ export async function getMyOrders(userId) {
 
 // Get user's swap requests
 export async function getMySwapRequests(userId) {
-  const res = await api.get(`/swap-requests?userId=${userId}`);
+  const res = await swapApi.get(`/swap-requests?userId=${userId}`);
   return res.data;
 }
 
 // Create swap request (Step C2)
 export async function createSwapRequest(payload) {
-  const res = await api.post("/swap-requests", {
+  const res = await swapApi.post("/swap-requests", {
     orderId: payload.orderId,
     eventId: payload.eventId,
     currentSeatId: payload.seatId,
@@ -174,13 +182,13 @@ export async function createSwapRequest(payload) {
 
 // Cancel swap request
 export async function cancelSwapRequest(requestId) {
-  const res = await api.delete(`/swap-requests/${requestId}`);
+  const res = await swapApi.delete(`/swap-requests/${requestId}`);
   return res.data;
 }
 
 // Respond to swap (ACCEPT / DECLINE) — FIXED (needs userId)
 export async function respondToSwapRequest(swapId, userId, response) {
-  const res = await api.post(`/swap-matches/${swapId}/response`, {
+  const res = await swapApi.post(`/swap-matches/${swapId}/response`, {
     userId,
     response: response.toUpperCase(),
   });
@@ -189,7 +197,7 @@ export async function respondToSwapRequest(swapId, userId, response) {
 
 // Get swap status
 export async function getSwapStatus(swapId) {
-  const res = await api.get(`/swap-matches/${swapId}`);
+  const res = await swapApi.get(`/swap-matches/${swapId}`);
   return res.data;
 }
 
@@ -197,7 +205,7 @@ export async function getSwapStatus(swapId) {
 
 // Create hold (Step C20)
 export async function createHold(orderId, eventId, seatId, ttlSeconds) {
-  const res = await api.post("/holds", {
+  const res = await seatApi.post("/holds", {
     orderId,
     eventId,
     seatId,
@@ -208,13 +216,13 @@ export async function createHold(orderId, eventId, seatId, ttlSeconds) {
 
 // Cancel hold (compensation)
 export async function cancelHold(holdId) {
-  const res = await api.delete(`/holds/${holdId}`);
+  const res = await seatApi.delete(`/holds/${holdId}`);
   return res.data;
 }
 
 // Confirm hold (Step C22)
 export async function confirmHold(holdId, transactionId) {
-  const res = await api.post(`/holds/${holdId}/confirm`, {
+  const res = await seatApi.post(`/holds/${holdId}/confirm`, {
     transactionId,
   });
   return res.data;
@@ -222,7 +230,7 @@ export async function confirmHold(holdId, transactionId) {
 
 // Execute swap (Step C23 → C24)
 export async function executeSwap(matchId, orderA, orderB, seatA, seatB) {
-  const res = await api.post(`/swaps/${matchId}/execute`, {
+  const res = await swapApi.post(`/swaps/${matchId}/execute`, {
     orderA,
     orderB,
     seatA,
