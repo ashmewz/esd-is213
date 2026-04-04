@@ -1,14 +1,8 @@
 import axios from "axios";
 
-// ── Toggle ──────────────────────────────────────────────────────────────────
-// Set VITE_USE_MOCK=true in ui/.env to force mock mode (e.g. when backend is down)
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+const api = axios.create({ baseURL: "http://localhost:8000" });
 
-const KONG = "http://localhost:8000";
-
-const api = axios.create({ baseURL: KONG });
-
-// ── Mock fallbacks (auth, notifications, admin, simulate) ───────────────────
+// ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
 export {
   USER_ID,
   customerLogin,
@@ -31,49 +25,41 @@ export {
 
 // ── Events ──────────────────────────────────────────────────────────────────
 export async function getEvents() {
-  if (USE_MOCK) {
-    const { getEvents: mock } = await import("./mock/mockApi");
-    return mock();
-  }
   const res = await api.get("/events");
   return res.data;
 }
 
 export async function getEvent(eventId) {
-  if (USE_MOCK) {
-    const { getEvent: mock } = await import("./mock/mockApi");
-    return mock(eventId);
-  }
   const res = await api.get(`/events/${eventId}`);
-  return res.data;
+  const event = res.data;
+  // Normalise: backend stores a single `date` string; UI expects `dates: [{ dateId, times }]`
+  if (event && event.date && !event.dates) {
+    event.dates = [{ dateId: event.date, times: ["19:00"] }];
+  }
+  return event;
 }
 
 export async function getSeatmap(eventId) {
-  if (USE_MOCK) {
-    const { getSeatmap: mock } = await import("./mock/mockApi");
-    return mock(eventId);
+  const [seatsRes, eventRes] = await Promise.all([
+    api.get(`/events/${eventId}/seats`),
+    api.get(`/events/${eventId}`),
+  ]);
+  const event = eventRes.data;
+  if (event && event.date && !event.dates) {
+    event.dates = [{ dateId: event.date, times: ["19:00"] }];
   }
-  const res = await api.get(`/events/${eventId}/seats`);
-  // Normalise to match shape the UI expects: { seats: [...], visualSections: [] }
-  return { seats: res.data, visualSections: [] };
+  // Normalise to match shape the UI expects: { seats, event, visualSections }
+  // Pass null so SeatmapPage falls back to its built-in VENUE_SECTIONS constant
+  return { seats: seatsRes.data, event, visualSections: null };
 }
 
 export async function validateSeat(eventId, seatId) {
-  if (USE_MOCK) {
-    const { validateSeat: mock } = await import("./mock/mockApi");
-    return mock(eventId, seatId);
-  }
   const res = await api.get(`/events/${eventId}/seats/${seatId}`);
   return res.data;
 }
 
 // ── Booking ─────────────────────────────────────────────────────────────────
 export async function createBooking(payload) {
-  if (USE_MOCK) {
-    const { createBooking: mock } = await import("./mock/mockApi");
-    return mock(payload);
-  }
-
   const items = payload?.items ?? [];
   if (items.length === 0) {
     const error = new Error("Your cart is empty.");
@@ -103,29 +89,17 @@ export async function createBooking(payload) {
 
 // ── Orders ───────────────────────────────────────────────────────────────────
 export async function getMyOrders(userId) {
-  if (USE_MOCK) {
-    const { getMyOrders: mock } = await import("./mock/mockApi");
-    return mock(userId);
-  }
   const res = await api.get(`/orders/${userId}`);
   return res.data;
 }
 
 // ── Swap ─────────────────────────────────────────────────────────────────────
 export async function getMySwapRequests(userId) {
-  if (USE_MOCK) {
-    const { getMySwapRequests: mock } = await import("./mock/mockApi");
-    return mock(userId);
-  }
   const res = await api.get(`/swap-requests?userId=${userId}`);
   return res.data;
 }
 
 export async function createSwapRequest(payload) {
-  if (USE_MOCK) {
-    const { createSwapRequest: mock } = await import("./mock/mockApi");
-    return mock(payload);
-  }
   const res = await api.post("/swap-requests", {
     orderId: payload.orderId,
     eventId: payload.eventId,
@@ -136,19 +110,11 @@ export async function createSwapRequest(payload) {
 }
 
 export async function cancelSwapRequest(requestId) {
-  if (USE_MOCK) {
-    const { cancelSwapRequest: mock } = await import("./mock/mockApi");
-    return mock(requestId);
-  }
   const res = await api.delete(`/swap-requests/${requestId}`);
   return res.data;
 }
 
 export async function respondToSwapRequest(swapId, response) {
-  if (USE_MOCK) {
-    const { respondToSwapRequest: mock } = await import("./mock/mockApi");
-    return mock(swapId, response);
-  }
   const res = await api.post(`/swap-matches/${swapId}/response`, {
     response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
   });
