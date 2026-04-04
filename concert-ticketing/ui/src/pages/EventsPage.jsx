@@ -9,13 +9,10 @@ const CATEGORIES = ["Concert", "Sport", "Festival", "Theater"];
 const ALL_VENUES = [
   "Singapore National Stadium",
   "Singapore Indoor Stadium",
-  "Resorts World Theatre",
   "Mediacorp Theatre",
   "Capitol Theatre",
   "The Star Theatre",
-  "Resorts World Ballroom",
-  "Singapore EXPO Hall 7",
-  "Fort Canning Park",
+  "Arena @ EXPO"
 ];
 
 // ── FilterSection (collapsible) ────────────────────────────────────────────

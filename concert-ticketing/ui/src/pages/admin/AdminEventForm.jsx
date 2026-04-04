@@ -6,13 +6,10 @@ import { adminGetEvents, adminCreateEvent, adminUpdateEvent } from "../../api";
 const VENUES = [
   "Singapore National Stadium",
   "Singapore Indoor Stadium",
-  "Resorts World Theatre",
   "Mediacorp Theatre",
   "Capitol Theatre",
   "The Star Theatre",
-  "Resorts World Ballroom",
-  "Singapore EXPO Hall 7",
-  "Fort Canning Park",
+  "Arena @ EXPO"
 ];
 
 function autoLabel(dateId) {

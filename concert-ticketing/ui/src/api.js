@@ -1,30 +1,5 @@
 import { DEFAULT_SEAT_CONFIG, generateSeatsFromConfig } from "./mock/data";
-import { DEFAULT_VENUE_SECTIONS } from "./mock/venueData";
-import {
-  USER_ID,
-  holdSeat,
-  releaseHold,
-  validateSeat,
-  customerLogin,
-  createBooking,
-  getMyOrders,
-  getMyNotifications,
-  simulateSeatReassignment,
-  simulateRefundIssued,
-  getMySwapRequests,
-  createSwapRequest,
-  cancelSwapRequest,
-  simulateSwapMatch,
-  respondToSwapRequest,
-  adminLogin,
-  adminGetTierPrices,
-  adminUpdateTierPrices,
-  adminGetSectionConfigs,
-  adminSetSectionConfigs,
-  adminGetVisualSections,
-  adminSetVisualSections,
-  getSeatmap as getMockSeatmap,
-} from "./mock/mockApi";
+import { VENUE_SECTIONS_MAP } from "./mock/venueData";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const EVENTS_API = import.meta.env.VITE_EVENTS_API_URL ?? API_BASE;
@@ -57,7 +32,7 @@ async function parseJson(res, fallbackMessage) {
   return res.json();
 }
 
-export { USER_ID };
+export { USER_ID } from "./mock/mockApi";
 export {
   holdSeat,
   releaseHold,
@@ -78,9 +53,26 @@ export {
   adminUpdateTierPrices,
   adminGetSectionConfigs,
   adminSetSectionConfigs,
-  adminGetVisualSections,
-  adminSetVisualSections,
-};
+} from "./mock/mockApi";
+
+const VISUAL_SECTIONS_KEY = "stagepass_visual_sections_";
+
+export async function adminGetVisualSections(eventId) {
+  try {
+    const saved = localStorage.getItem(VISUAL_SECTIONS_KEY + eventId);
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  const event = await getEvent(eventId);
+  const sections = VENUE_SECTIONS_MAP[event.venueName] ?? VENUE_SECTIONS_MAP["Singapore National Stadium"];
+  return sections.map((s) => ({ ...s, hidden: false }));
+}
+
+export async function adminSetVisualSections(eventId, sections) {
+  try {
+    localStorage.setItem(VISUAL_SECTIONS_KEY + eventId, JSON.stringify(sections));
+  } catch (_) {}
+  return sections;
+}
 
 export async function registerUser(username, email, password) {
   const res = await fetch(`${USERS_API}/users`, {
@@ -120,18 +112,15 @@ export async function getEvents() {
 }
 
 export async function getSeatmap(eventId) {
+  const event = await getEvent(eventId);
+  const seed = parseInt(event.eventId.replace(/-/g, "").slice(0, 8), 16) % 3 + 1;
+  const seats = generateSeatsFromConfig(seed, DEFAULT_SEAT_CONFIG);
+  let visualSections = null;
   try {
-    const event = await getEvent(eventId);
-    const seed = parseInt(event.eventId.replace(/-/g, "").slice(0, 8), 16) % 3 + 1;
-    const seats = generateSeatsFromConfig(seed, DEFAULT_SEAT_CONFIG);
-    return {
-      event,
-      seats,
-      visualSections: DEFAULT_VENUE_SECTIONS.map((s) => ({ ...s, hidden: false })),
-    };
-  } catch {
-    return getMockSeatmap(eventId);
-  }
+    const saved = localStorage.getItem(VISUAL_SECTIONS_KEY + eventId);
+    if (saved) visualSections = JSON.parse(saved);
+  } catch (_) {}
+  return { event, seats, visualSections };
 }
 
 export async function adminGetEvents() {
