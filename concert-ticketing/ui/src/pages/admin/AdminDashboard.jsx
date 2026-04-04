@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Search, Pencil, Trash2, Ticket } from "lucide-react";
 import { adminGetEvents, adminDeleteEvent } from "../../api";
 
-const STATUS_LABELS = { active: "Live", upcoming: "Upcoming", finished: "Finished" };
+const STATUS_LABELS = { active: "Live", upcoming: "Upcoming", finished: "Finished", deleted: "Deleted" };
 const STATUS_COLORS = {
   active:   "bg-green-100 text-green-700",
   upcoming: "bg-blue-100  text-blue-700",
   finished: "bg-gray-200  text-gray-500",
+  deleted:  "bg-red-100   text-red-700",
 };
 
-const TABS = ["All", "Live", "Upcoming", "Finished"];
+const TABS = ["All", "Live", "Upcoming", "Finished", "Deleted"];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -30,7 +31,8 @@ export default function AdminDashboard() {
       tab === "All" ||
       (tab === "Live"     && e.status === "active")   ||
       (tab === "Upcoming" && e.status === "upcoming") ||
-      (tab === "Finished" && e.status === "finished");
+      (tab === "Finished" && e.status === "finished") ||
+      (tab === "Deleted"  && e.status === "deleted");
     const matchSearch = e.name.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });

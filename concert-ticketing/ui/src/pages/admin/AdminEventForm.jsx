@@ -4,6 +4,60 @@ import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { adminGetEvents, adminCreateEvent, adminUpdateEvent } from "../../api";
 
 const EMPTY_DATE = () => ({ dateId: "", label: "", times: [""] });
+const VENUE_OPTIONS = [
+  "Singapore National Stadium",
+  "Singapore Indoor Stadium",
+  "Mediacorp Theatre",
+  "Capitol Theatre",
+  "The Star Theatre",
+  "Arena @ EXPO (Hall 7)",
+];
+
+function formatDateLabel(dateId) {
+  if (!dateId) return "";
+  const date = new Date(`${dateId}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-SG", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function toTimeInputValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return "";
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === "AM") {
+    if (hours === 12) hours = 0;
+  } else if (hours !== 12) {
+    hours += 12;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
+}
+
+function toDisplayTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return raw;
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const meridiem = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${meridiem}`;
+}
 
 export default function AdminEventForm() {
   const { eventId } = useParams(); // present when editing
@@ -22,27 +76,36 @@ export default function AdminEventForm() {
   useEffect(() => {
     if (!isEdit) return;
     adminGetEvents().then((events) => {
-      const ev = events.find((e) => e.eventId === Number(eventId));
+      const ev = events.find((e) => String(e.eventId) === String(eventId));
       if (!ev) return;
       setName(ev.name);
       setVenueName(ev.venueName);
       setDate(ev.date);
       setStatus(ev.status);
       setImageUrl(ev.imageUrl ?? "");
-      setDates(ev.dates.length > 0 ? ev.dates.map((d) => ({ ...d, times: [...d.times] })) : [EMPTY_DATE()]);
+      setDates(ev.dates?.length > 0 ? ev.dates.map((d) => ({ ...d, times: [...d.times] })) : [EMPTY_DATE()]);
     });
   }, [eventId, isEdit]);
 
   // ── Date/time helpers ────────────────────────────────────────────────────
   function updateDate(i, field, value) {
-    setDates((prev) => prev.map((d, idx) => idx === i ? { ...d, [field]: value } : d));
+    setDates((prev) =>
+      prev.map((d, idx) => {
+        if (idx !== i) return d;
+        const next = { ...d, [field]: value };
+        if (field === "dateId") {
+          next.label = formatDateLabel(value);
+        }
+        return next;
+      })
+    );
   }
 
   function updateTime(dateIdx, timeIdx, value) {
     setDates((prev) =>
       prev.map((d, i) =>
         i === dateIdx
-          ? { ...d, times: d.times.map((t, ti) => ti === timeIdx ? value : t) }
+          ? { ...d, times: d.times.map((t, ti) => ti === timeIdx ? toDisplayTime(value) : t) }
           : d
       )
     );
@@ -120,10 +183,14 @@ export default function AdminEventForm() {
         </Field>
 
         <Field label="Venue">
-          <input
-            type="text" value={venueName} onChange={(e) => setVenueName(e.target.value)}
-            className={inputCls} placeholder="e.g. Singapore National Stadium" required
-          />
+          <select value={venueName} onChange={(e) => setVenueName(e.target.value)} className={inputCls} required>
+            <option value="">Choose a venue</option>
+            {VENUE_OPTIONS.map((venue) => (
+              <option key={venue} value={venue}>
+                {venue}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Display Date (shown on cards)">
@@ -190,8 +257,9 @@ export default function AdminEventForm() {
                     <label className="text-xs text-gray-500 mb-1 block">Display Label</label>
                     <input
                       type="text" value={d.label}
-                      onChange={(e) => updateDate(di, "label", e.target.value)}
-                      className={inputCls} placeholder="Sat 22 Nov 2026"
+                      readOnly
+                      className={`${inputCls} bg-gray-50 text-gray-600`}
+                      placeholder="Auto-generated from date"
                     />
                   </div>
                   {dates.length > 1 && (
@@ -207,9 +275,10 @@ export default function AdminEventForm() {
                   {d.times.map((t, ti) => (
                     <div key={ti} className="flex gap-2 items-center">
                       <input
-                        type="text" value={t}
+                        type="time"
+                        value={toTimeInputValue(t)}
                         onChange={(e) => updateTime(di, ti, e.target.value)}
-                        className={`${inputCls} flex-1`} placeholder="7:30 PM"
+                        className={`${inputCls} flex-1`}
                       />
                       {d.times.length > 1 && (
                         <button type="button" onClick={() => removeTime(di, ti)}

@@ -59,7 +59,7 @@ services:
   - name: events
     paths:
     - /events
-    methods: ["GET","POST","PUT","OPTIONS"]
+    methods: ["GET","POST","PUT","DELETE","OPTIONS"]
     strip_path: false
 
 

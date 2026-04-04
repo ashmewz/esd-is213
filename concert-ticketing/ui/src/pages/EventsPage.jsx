@@ -9,13 +9,10 @@ const CATEGORIES = ["Concert", "Sport", "Festival", "Theater"];
 const ALL_VENUES = [
   "Singapore National Stadium",
   "Singapore Indoor Stadium",
-  "Resorts World Theatre",
   "Mediacorp Theatre",
   "Capitol Theatre",
   "The Star Theatre",
-  "Resorts World Ballroom",
-  "Singapore EXPO Hall 7",
-  "Fort Canning Park",
+  "Arena @ EXPO (Hall 7)",
 ];
 
 // ── FilterSection (collapsible) ────────────────────────────────────────────
@@ -177,7 +174,12 @@ function EventCard({ event, onClick }) {
           Concert
         </span>
         <h2 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h2>
-        <p className="text-xs text-gray-500">{event.date}</p>
+        {(() => {
+          const dateStr = event.dates?.length > 0
+            ? event.dates.map((d) => d.label || d.dateId).filter(Boolean).join(" · ")
+            : event.date || null;
+          return dateStr ? <p className="text-xs text-gray-500">{dateStr}</p> : null;
+        })()}
         <p className="text-xs text-gray-500">{event.venueName}</p>
         <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets
