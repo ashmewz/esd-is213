@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package user;
+
+import "google/api/annotations.proto";
+
+// The UserService defines gRPC methods corresponding to your REST routes
+service UserService {
+  // Create a new user (POST /users)
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/users"
+      body: "*"
+    };
+  }
+
+  // Login a user (POST /users/login)
+  rpc LoginUser(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/users/login"
+      body: "*"
+    };
+  }
+
+  // Get a user by ID (GET /users/{user_id})
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/users/{user_id}"
+    };
+  }
+
+  // List all users (GET /users)
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/users"
+    };
+  }
+
+  // Delete a user by ID (DELETE /users/{user_id})
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
+    option (google.api.http) = {
+      delete: "/users/{user_id}"
+    };
+  }
+}
+
+// ================= Messages =================
+
+// User representation
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+// Requests
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message ListUsersRequest {
+}
+
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+// Responses
+message CreateUserResponse {
+  User user = 1;
+}
+
+message LoginResponse {
+  string token = 1;
+  User user = 2;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message DeleteUserResponse {
+  string message = 1;
+}
