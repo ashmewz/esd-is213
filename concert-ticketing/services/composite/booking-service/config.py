@@ -12,4 +12,5 @@ class Config:
     ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://order-service:5000")
     ORDER_SERVICE_TIMEOUT = float(os.getenv("ORDER_SERVICE_TIMEOUT", "30"))
     PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://payment-service:5000")
-    NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://notification-service:5000") 
+    NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://notification-service:5000")
+    USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://user-service:5000")
