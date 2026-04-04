@@ -36,7 +36,7 @@ export default function ConfirmationPage() {
     if (!hasOrder) return null;
 
     const subtotal = cartItems.reduce(
-      (sum, item) => sum + Number(item.seat?.basePrice ?? 0),
+      (sum, item) => sum + Number(item.seat?.price ?? item.seat?.basePrice ?? 0),
       0
     );
     const fees = cartItems.length * FEE;
@@ -158,7 +158,7 @@ export default function ConfirmationPage() {
                           {seat.tier} · Section {seat.sectionNo} · Row {seat.rowNo} · Seat {seat.seatNo}
                         </p>
                       </div>
-                      <p className="text-sm font-bold text-gray-900">{formatCurrency(Number(seat.basePrice ?? 0))}</p>
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(Number(seat.price ?? seat.basePrice ?? 0))}</p>
                     </div>
                   ))}
                 </div>
