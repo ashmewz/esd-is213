@@ -24,6 +24,8 @@ events = [
         "date": "2025-06-15",
         "seatmap": 1,
         "status": "ACTIVE",
+        "venueName": "Singapore National Stadium",
+        "imageUrl": "/taylor.jpg",
     },
     {
         "eventId": EVENT_E2,
@@ -32,19 +34,24 @@ events = [
         "date": "2025-07-20",
         "seatmap": 2,
         "status": "ACTIVE",
+        "venueName": "Singapore Indoor Stadium",
+        "imageUrl": "/coldplay.jpg",
     },
 ]
 
-# Seatmap 1: VIP + CAT1 in section A; compact for testing
-# Seatmap 2: CAT1 + CAT2 in section A
+# Seatmap 1 (Taylor Swift): VIP + CAT1 + CAT2 + CAT3
+# Seatmap 2 (Coldplay):     CAT1 + CAT2 + CAT3
 SEATMAP_TEMPLATES = {
     1: [
-        {"tier": "VIP", "sections": ["A"], "rows": 2, "seatsPerRow": 3, "basePrice": 350.00},
-        {"tier": "CAT1", "sections": ["A"], "rows": 2, "seatsPerRow": 3, "basePrice": 200.00},
+        {"tier": "VIP",  "sections": [1], "rows": 2, "seatsPerRow": 3, "basePrice": 350.00},
+        {"tier": "CAT1", "sections": [2], "rows": 2, "seatsPerRow": 3, "basePrice": 200.00},
+        {"tier": "CAT2", "sections": [4], "rows": 2, "seatsPerRow": 4, "basePrice": 128.00},
+        {"tier": "CAT3", "sections": [6], "rows": 2, "seatsPerRow": 5, "basePrice": 68.00},
     ],
     2: [
-        {"tier": "CAT1", "sections": ["A"], "rows": 2, "seatsPerRow": 4, "basePrice": 180.00},
-        {"tier": "CAT2", "sections": ["A"], "rows": 2, "seatsPerRow": 4, "basePrice": 90.00},
+        {"tier": "CAT1", "sections": [2], "rows": 2, "seatsPerRow": 4, "basePrice": 180.00},
+        {"tier": "CAT2", "sections": [4], "rows": 2, "seatsPerRow": 4, "basePrice": 90.00},
+        {"tier": "CAT3", "sections": [6], "rows": 2, "seatsPerRow": 5, "basePrice": 55.00},
     ],
 }
 

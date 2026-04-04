@@ -1,5 +1,14 @@
+import os
+import bcrypt
+import jwt
+from datetime import datetime, timezone, timedelta
+
 from app.repository.user_repository import UserRepository
-from app.messaging.producer import publish_event
+
+JWT_SECRET = os.getenv("JWT_SECRET", "stagepass-secret-key")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRY_HOURS = 24
+
 
 class UserService:
 
@@ -9,15 +18,37 @@ class UserService:
         if existing:
             raise Exception("User already exists")
 
+        hashed = bcrypt.hashpw(data["password"].encode("utf-8"), bcrypt.gensalt())
+
         user = UserRepository.create_user(
             db,
             username=data["username"],
             email=data["email"],
-            password=data["password"]
+            password=hashed.decode("utf-8"),
         )
 
         # publish_event("user.created", user.to_dict())
         return user
+
+    @staticmethod
+    def login_user(db, email, password):
+        user = UserRepository.get_user_by_email(db, email)
+        if not user:
+            raise Exception("Invalid credentials")
+
+        if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+            raise Exception("Invalid credentials")
+
+        payload = {
+            "sub": str(user.user_id),
+            "email": user.email,
+            "username": user.username,
+            "role": "customer",
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        return token, user
 
     @staticmethod
     def get_user(db, user_id):

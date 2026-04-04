@@ -4,7 +4,7 @@ from config import Config
 
 
 class PaymentClient:
-    def process_payment(self, order_id, user_id, amount, currency="SGD"):
+    def process_payment(self, order_id, user_id, amount, currency="SGD", card_last4=""):
         """Call Payment Service to process a purchase payment.
 
         Returns the JSON response from Payment Service.
@@ -16,8 +16,8 @@ class PaymentClient:
             "amount": amount,
             "currency": currency,
             "type": "PURCHASE",
-            # Use orderId as idempotency key — one purchase attempt per order
             "idempotencyKey": f"purchase-{order_id}",
+            "cardLast4": card_last4,
         }
         response = requests.post(
             f"{Config.PAYMENT_SERVICE_URL}/payments",

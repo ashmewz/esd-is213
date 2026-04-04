@@ -1,103 +1,113 @@
 _format_version: "2.1"
-_transform: true
 
 services:
+
 - name: booking-service
   url: http://booking-service:5000
   routes:
-  - name: booking-create
+  - name: place-booking
     paths:
-    - /booking
-    methods: ["POST"]
+    - /place-booking
+    methods: ["POST","OPTIONS"]
+    strip_path: false
 
 - name: swap-orchestration-service
   url: http://swap-orchestration-service:5000
   routes:
-  - name: swap-request
+  - name: swap-requests
+    paths:
+    - /swap-requests
+    methods: ["POST","OPTIONS"]
+    strip_path: false
+  - name: swap-matches
+    paths:
+    - /swap-matches
+    methods: ["POST","OPTIONS"]
+    strip_path: false
+  - name: swap-status
     paths:
     - /swap
-    methods: ["POST","DELETE"]
-  - name: swap-confirm
+    methods: ["GET","OPTIONS"]
+    strip_path: false
+
+- name: user-service-login
+  url: http://user-service:5000
+  routes:
+  - name: user-login
     paths:
-    - ~/swap/[^/]+/confirm$
-    methods: ["POST"]
+    - /users/login
+    methods: ["POST","OPTIONS"]
+    strip_path: false
+
+- name: user-service
+  url: http://user-service:5000
+  routes:
+  - name: users
+    paths:
+    - /users
+    methods: ["GET","POST","DELETE","OPTIONS"]
+    strip_path: false
 
 - name: events-service
-  url: http://event-service:5000
+  url: http://events-service:5000
   routes:
-  - name: events-root
+  - name: events
     paths:
     - /events
-    methods: ["GET"]
-  - name: events-id
-    paths:
-    - ~/events/[^/]+$
-    methods: ["GET"]
-  - name: events-seat
-    paths:
-    - ~/events/[^/]+/[^/]+$
-    methods: ["GET"]
+    methods: ["GET","POST","PUT","OPTIONS"]
+    strip_path: false
 
 - name: order-service
   url: http://order-service:5000
   routes:
-  - name: order-create
+  - name: orders
     paths:
-    - /order
-    methods: ["POST"]
-  - name: order-confirm
-    paths:
-    - "~/order/[^/]+$"
-    methods: ["POST"]
-  - name: order-cancel
-    paths:
-    - "~/order/[^/]+$"
-    methods: ["DELETE"]
-  - name: order-swap-request
-    paths:
-    - "~/order/[^/]+/swap$"
-    methods: ["POST"]
-
-- name: order-admin-service
-  url: http://order-service:5000
-  routes:
-  - name: order-admin
+    - /orders
+    methods: ["GET","POST","PUT","OPTIONS"]
+    strip_path: false
+  - name: orders-admin
     paths:
     - /admin/orders
+    methods: ["GET","OPTIONS"]
+    strip_path: false
 
 - name: seat-allocation-service
   url: http://seat-allocation-service:5000
   routes:
-  - name: hold-id
+  - name: holds
     paths:
-    - "~/hold/[^/]+$"
-    methods: ["POST","DELETE"]
+    - /holds
+    methods: ["GET","POST","DELETE","OPTIONS"]
+    strip_path: false
 
 - name: payment-service
   url: http://payment-service:5000
   routes:
-  - name: payment-id
+  - name: payments
     paths:
-    - "~/payment/[^/]+$"
-    methods: ["POST"]
-  - name: payment-refund
-    paths:
-    - "~/payment/[^/]+/refund$"
-    methods: ["POST"]
-  - name: payment-adjust
-    paths:
-    - "~/payment/[^/]+/adjustment$"
-    methods: ["POST"]
-
-- name: notification-service
-  url: http://notification-service:5000
-  routes:
-  - name: notification
-    paths:
-    - /notification
-    methods: ["POST"]
+    - /payments
+    methods: ["GET","POST","OPTIONS"]
 
 plugins:
 - name: file-log
   config:
     path: /dev/stdout
+
+- name: cors
+  config:
+    origins:
+      - "http://localhost:5173"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    headers:
+      - Accept
+      - Content-Type
+      - Authorization
+    exposed_headers:
+      - X-Auth-Token
+    credentials: true
+    max_age: 3600

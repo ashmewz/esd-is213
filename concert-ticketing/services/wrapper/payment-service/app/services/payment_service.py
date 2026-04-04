@@ -1,12 +1,15 @@
 import logging
 
+import os
+
 from app import db
 from app.models.payment_models import Transaction
 from app.providers.stripe_provider import StripeProvider
+from app.providers.mock_provider import MockPaymentProvider
 
 logger = logging.getLogger(__name__)
 
-_provider = StripeProvider()
+_provider = StripeProvider() if os.getenv("STRIPE_SECRET_KEY") else MockPaymentProvider()
 
 _SUPPORTED_CURRENCIES = frozenset({"SGD", "USD", "EUR"})
 _SUPPORTED_TYPES = frozenset({"PURCHASE"})
@@ -17,7 +20,7 @@ _TYPE_MAP = {
 }
 
 
-def process_purchase(order_id, user_id, amount, currency, payment_type, idempotency_key):
+def process_purchase(order_id, user_id, amount, currency, payment_type, idempotency_key, card_last4=""):
     """Process a purchase payment for Scenario A.
 
     Returns the Transaction record (new or existing if idempotent retry).
@@ -81,6 +84,7 @@ def process_purchase(order_id, user_id, amount, currency, payment_type, idempote
             user_id=str(user_id),
             amount=amount,
             currency=currency,
+            card_last4=card_last4,
         )
     except Exception as exc:
         # Provider raised unexpectedly — mark as failed and surface a clean error

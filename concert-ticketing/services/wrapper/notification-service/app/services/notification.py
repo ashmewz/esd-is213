@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config import (
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-    SMTP_HOST, SMTP_PORT, P_USER, SMTP_PASSWORD, EMAIL_FROM
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
 )
 
 
@@ -103,7 +103,7 @@ def _send_email(recipient: str, subject: str, body: str):
         msg["To"] = recipient
         msg.attach(MIMEText(body, "plain"))
 
-        with plib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.ehlo()
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)

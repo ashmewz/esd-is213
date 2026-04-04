@@ -157,7 +157,7 @@ function FilterDrawer({ open, onClose, filters, onChange, onClear, eventVenues }
 
 // ── EventCard ──────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
-  const hasTickets = event.status === "active";
+  const hasTickets = event.status?.toLowerCase() === "active";
 
   return (
     <div

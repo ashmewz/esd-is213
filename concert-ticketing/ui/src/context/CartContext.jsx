@@ -61,7 +61,7 @@ export function CartProvider({ children }) {
     setShowCartPopup(false);
   }
 
-  const cartTotal = cartItems.reduce((sum, i) => sum + i.seat.basePrice + FEE, 0);
+  const cartTotal = cartItems.reduce((sum, i) => sum + (i.seat.price ?? i.seat.basePrice) + FEE, 0);
 
   function formatTime(s) {
     if (s === null) return null;

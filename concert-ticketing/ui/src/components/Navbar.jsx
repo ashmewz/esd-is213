@@ -65,7 +65,7 @@ export default function Navbar() {
                     onClick={() => isAuthenticated ? navigate("/checkout") : setShowLoginModal(true)}
                     className="bg-[#800020] hover:bg-[#6a001a] text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm"
                   >
-                    Checkout ${cartTotal}.00
+                    Checkout ${cartTotal.toFixed(2)}
                   </button>
                 </>
               )}
@@ -113,8 +113,8 @@ export default function Navbar() {
                               {date}{time && `, ${time}`}
                             </p>
                             <div className="flex justify-between text-xs text-gray-600">
-                              <span>1 x Adult (${seat.basePrice})</span>
-                              <span>${seat.basePrice}.00</span>
+                              <span>1 x Adult</span>
+                              <span>${(seat.price ?? seat.basePrice).toFixed(2)}</span>
                             </div>
                           </div>
                         ))}
@@ -125,7 +125,7 @@ export default function Navbar() {
                         </div>
                         <div className="flex justify-between font-bold text-gray-800 mt-1 mb-4">
                           <span>Cart Subtotal:</span>
-                          <span>${cartTotal}.00</span>
+                          <span>${cartTotal.toFixed(2)}</span>
                         </div>
 
                         <button

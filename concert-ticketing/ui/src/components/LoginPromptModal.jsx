@@ -1,14 +1,17 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { X, LogIn, UserPlus } from "lucide-react";
 
 export default function LoginPromptModal({ open, onClose }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!open) return null;
 
+  const returnTo = location.pathname + location.search;
+
   function goTo(path) {
     onClose();
-    navigate(path);
+    navigate(path, { state: { returnTo } });
   }
 
   return (

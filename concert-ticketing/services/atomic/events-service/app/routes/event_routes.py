@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, request
+
 from app.core.database import get_db
 from app.models.events_models import Event, Seat
 
 event_bp = Blueprint("events", __name__)
+
+ALLOWED_SEAT_STATUSES = frozenset({"available", "held", "sold", "blocked", "removed"})
 
 
 @event_bp.route("/events")
@@ -72,9 +75,14 @@ def update_event(event_id):
             return jsonify({"error": "Request body is required"}), 400
 
         for field, col in [
-            ("name", "name"), ("status", "status"), ("venueId", "venue_id"),
-            ("venueName", "venue_name"), ("imageUrl", "image_url"), ("dates", "dates"),
-            ("seatmapVersion", "seatmap_version"), ("eventDate", "event_date"),
+            ("name", "name"),
+            ("status", "status"),
+            ("venueId", "venue_id"),
+            ("venueName", "venue_name"),
+            ("imageUrl", "image_url"),
+            ("dates", "dates"),
+            ("seatmapVersion", "seatmap_version"),
+            ("eventDate", "event_date"),
         ]:
             if field in data:
                 setattr(event, col, data[field])
@@ -106,5 +114,49 @@ def list_seats(event_id):
     try:
         seats = db.query(Seat).filter(Seat.event_id == event_id).all()
         return jsonify([s.to_dict() for s in seats]), 200
+    finally:
+        db.close()
+
+
+@event_bp.route("/events/<event_id>/seats/<seat_id>")
+def get_seat(event_id, seat_id):
+    db = next(get_db())
+    try:
+        seat = (
+            db.query(Seat)
+            .filter(Seat.event_id == event_id, Seat.seat_id == seat_id)
+            .first()
+        )
+        if not seat:
+            return jsonify({"error": "Seat not found"}), 404
+        return jsonify(seat.to_dict()), 200
+    finally:
+        db.close()
+
+
+@event_bp.route("/events/<event_id>/seats/<seat_id>/status", methods=["PUT"])
+def update_seat_status(event_id, seat_id):
+    db = next(get_db())
+    try:
+        seat = (
+            db.query(Seat)
+            .filter(Seat.event_id == event_id, Seat.seat_id == seat_id)
+            .first()
+        )
+        if not seat:
+            return jsonify({"error": "Seat not found"}), 404
+
+        payload = request.get_json(silent=True)
+        if not payload or "status" not in payload:
+            return jsonify({"error": "status is required"}), 400
+
+        normalized = str(payload["status"]).strip().lower()
+        if normalized not in ALLOWED_SEAT_STATUSES:
+            return jsonify({"error": "Invalid status.", "allowed": sorted(ALLOWED_SEAT_STATUSES)}), 400
+
+        seat.status = normalized
+        db.commit()
+        db.refresh(seat)
+        return jsonify({"message": "Seat status updated successfully.", "data": seat.to_dict()}), 200
     finally:
         db.close()
