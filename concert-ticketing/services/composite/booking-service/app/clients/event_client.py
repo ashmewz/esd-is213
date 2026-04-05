@@ -14,7 +14,10 @@ class EventClient:
         res = requests.get(url)
         if res.status_code != 200:
             return None
-        return res.json()
+        seat = res.json()
+        if seat.get("status", "").lower() != "available":
+            return None
+        return seat
 
     def update_seat_status(self, event_id, seat_id, status="sold"):
         """PUT /events/{eventId}/seats/{seatId}/status — mark catalog seat (Scenario A)."""

@@ -61,13 +61,22 @@ class BookingService:
         user = self.user_client.get_user(user_id)
 
         try:
+            seat_label = (
+                f"{seat.get('tier', '')} · "
+                f"Section {seat.get('sectionNo', '')} · "
+                f"Row {seat.get('rowNo', '')} · "
+                f"Seat {seat.get('seatNo', '')}"
+            ).strip(" ·")
+
+            raw_date = event.get("eventDate") or event.get("date") if event else None
             publish_event("ticket.purchased", {
                 "orderId": order_id,
                 "userId": user_id,
                 "seatId": seat_id,
+                "seatLabel": seat_label,
                 "eventName": event.get("name") if event else None,
                 "venue": event.get("venueName") if event else None,
-                "eventDate": event.get("date") if event else None,
+                "eventDate": raw_date,
                 "email": user.get("email") if user else None,
             })
         except Exception:
