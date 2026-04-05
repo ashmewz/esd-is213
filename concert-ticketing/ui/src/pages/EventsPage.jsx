@@ -154,7 +154,8 @@ function FilterDrawer({ open, onClose, filters, onChange, onClear, eventVenues }
 
 // ── EventCard ──────────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
-  const hasTickets = event.status?.toLowerCase() === "active";
+  const status = event.status?.toLowerCase() ?? "";
+  const hasTickets = event.canBuy ?? (status !== "deleted" && status !== "finished");
 
   return (
     <div
@@ -174,17 +175,12 @@ function EventCard({ event, onClick }) {
           Concert
         </span>
         <h2 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h2>
-        {(() => {
-          const dateStr = event.dates?.length > 0
-            ? event.dates.map((d) => d.label || d.dateId).filter(Boolean).join(" · ")
-            : event.date || null;
-          return dateStr ? <p className="text-xs text-gray-500">{dateStr}</p> : null;
-        })()}
+        {formatCardDate(event) ? <p className="text-xs text-gray-500">{formatCardDate(event)}</p> : null}
         <p className="text-xs text-gray-500">{event.venueName}</p>
         <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets
             ? event.minPrice != null ? `From S$${event.minPrice}` : "Tickets Available"
-            : "No Tickets Available"}
+            : "Tickets Unavailable"}
         </p>
       </div>
     </div>
@@ -202,6 +198,52 @@ const BLANK_FILTERS = {
 function parseFirstDate(event) {
   // Use the first dateId (YYYY-MM-DD) if available, otherwise null
   return event.dates?.[0]?.dateId ?? null;
+}
+
+function formatCardDate(event) {
+  const validDates = (event.dates ?? [])
+    .map((entry) => entry.dateId)
+    .filter(Boolean)
+    .sort();
+
+  if (validDates.length === 0) return event.date || null;
+
+  const dates = validDates
+    .map((value) => new Date(`${value}T00:00:00`))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  if (dates.length === 0) return event.date || null;
+
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+
+  if (validDates.length === 1) {
+    return first.toLocaleDateString("en-SG", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const firstDay = first.toLocaleDateString("en-SG", { weekday: "short" });
+  const lastDay = last.toLocaleDateString("en-SG", { weekday: "short" });
+  const firstDate = first.toLocaleDateString("en-SG", { day: "2-digit" });
+  const lastDate = last.toLocaleDateString("en-SG", { day: "2-digit" });
+  const firstMonth = first.toLocaleDateString("en-SG", { month: "short" });
+  const lastMonth = last.toLocaleDateString("en-SG", { month: "short" });
+  const firstYear = first.getFullYear();
+  const lastYear = last.getFullYear();
+
+  if (firstYear === lastYear && firstMonth === lastMonth) {
+    return `${firstDay} ${firstDate} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  if (firstYear === lastYear) {
+    return `${firstDay} ${firstDate} ${firstMonth} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  return `${firstDay} ${firstDate} ${firstMonth} ${firstYear} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
 }
 
 // ── EventsPage ─────────────────────────────────────────────────────────────

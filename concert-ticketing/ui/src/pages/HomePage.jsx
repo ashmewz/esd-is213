@@ -1,8 +1,68 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { EVENTS } from "../mock/data";
+import { getEvents } from "../api";
+
+function parseFirstDate(event) {
+  return event.dates?.[0]?.dateId ?? null;
+}
+
+function getEventStartDate(event) {
+  const firstDate = parseFirstDate(event);
+  if (!firstDate) return null;
+
+  const parsed = new Date(`${firstDate}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatCardDate(event) {
+  const validDates = (event.dates ?? [])
+    .map((entry) => entry.dateId)
+    .filter(Boolean)
+    .sort();
+
+  if (validDates.length === 0) return event.date || null;
+
+  const dates = validDates
+    .map((value) => new Date(`${value}T00:00:00`))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  if (dates.length === 0) return event.date || null;
+
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+
+  if (dates.length === 1) {
+    return first.toLocaleDateString("en-SG", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const firstDay = first.toLocaleDateString("en-SG", { weekday: "short" });
+  const lastDay = last.toLocaleDateString("en-SG", { weekday: "short" });
+  const firstDate = first.toLocaleDateString("en-SG", { day: "2-digit" });
+  const lastDate = last.toLocaleDateString("en-SG", { day: "2-digit" });
+  const firstMonth = first.toLocaleDateString("en-SG", { month: "short" });
+  const lastMonth = last.toLocaleDateString("en-SG", { month: "short" });
+  const firstYear = first.getFullYear();
+  const lastYear = last.getFullYear();
+
+  if (firstYear === lastYear && firstMonth === lastMonth) {
+    return `${firstDay} ${firstDate} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  if (firstYear === lastYear) {
+    return `${firstDay} ${firstDate} ${firstMonth} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  return `${firstDay} ${firstDate} ${firstMonth} ${firstYear} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+}
 
 function FeaturedEventCard({ event, onClick }) {
-  const hasTickets = event.status === "active";
+  const status = event.status?.toLowerCase() ?? "";
+  const hasTickets = event.canBuy ?? (status !== "deleted" && status !== "finished");
   return (
     <div
       className="flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer outline outline-1 outline-gray-300 hover:outline-[#800020] hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
@@ -20,12 +80,12 @@ function FeaturedEventCard({ event, onClick }) {
           Concert
         </span>
         <h3 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h3>
-        <p className="text-xs text-gray-500">{event.date}</p>
+        {formatCardDate(event) ? <p className="text-xs text-gray-500">{formatCardDate(event)}</p> : null}
         <p className="text-xs text-gray-500">{event.venueName}</p>
         <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets
             ? event.minPrice != null ? `From S$${event.minPrice}` : "Tickets Available"
-            : "No Tickets Available"}
+            : "Tickets Unavailable"}
         </p>
       </div>
     </div>
@@ -34,7 +94,33 @@ function FeaturedEventCard({ event, onClick }) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const featuredEvent = EVENTS[0];
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getEvents()
+      .then(setEvents)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const upcomingEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events
+      .map((event) => ({ event, startDate: getEventStartDate(event) }))
+      .filter(({ event, startDate }) => {
+        if (!startDate || startDate < today) return false;
+        return event.status?.toLowerCase() !== "deleted" && (event.canBuy ?? true);
+      })
+      .sort((a, b) => a.startDate - b.startDate)
+      .slice(0, 5)
+      .map(({ event }) => event);
+  }, [events]);
+
+  const featuredEvent = upcomingEvents[0] ?? null;
 
   return (
     <div className="min-h-screen">
@@ -75,11 +161,17 @@ export default function HomePage() {
         {/* Right image */}
         <div className="hidden lg:flex flex-1 justify-end items-center relative z-10">
           <div className="w-[480px] h-[480px] overflow-hidden rounded-tl-3xl rounded-br-3xl">
-            <img
-              src={featuredEvent.imageUrl}
-              alt={featuredEvent.name}
-              className="w-full h-full object-cover grayscale brightness-75"
-            />
+            {featuredEvent?.imageUrl ? (
+              <img
+                src={featuredEvent.imageUrl}
+                alt={featuredEvent.name}
+                className="w-full h-full object-cover grayscale brightness-75"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-white/10 text-white/70 text-lg">
+                Upcoming events
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -94,7 +186,7 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {EVENTS.map((event) => (
+          {upcomingEvents.map((event) => (
             <FeaturedEventCard
               key={event.eventId}
               event={event}
@@ -102,6 +194,12 @@ export default function HomePage() {
             />
           ))}
         </div>
+
+        {loading ? <p className="text-center mt-6 text-sm text-gray-400">Loading events...</p> : null}
+        {error ? <p className="text-center mt-6 text-sm text-red-400">{error}</p> : null}
+        {!loading && !error && upcomingEvents.length === 0 ? (
+          <p className="text-center mt-6 text-sm text-gray-500">No upcoming events available right now.</p>
+        ) : null}
 
         <div className="flex justify-center mt-12">
           <button

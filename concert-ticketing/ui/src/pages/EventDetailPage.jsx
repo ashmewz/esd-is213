@@ -18,10 +18,11 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
   const [year, setYear]   = useState(first.getFullYear());
   const [month, setMonth] = useState(first.getMonth());
 
-  const availableSet = new Set(eventDates.map((d) => d.dateId));
+  const availableSet = new Set(
+    eventDates.filter((d) => d.isSellable !== false).map((d) => d.dateId)
+  );
   const daysInMonth  = new Date(year, month + 1, 0).getDate();
   const startDay     = new Date(year, month, 1).getDay();
-  const today        = new Date();
 
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear((y) => y - 1); }
@@ -69,10 +70,6 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
           const dateId  = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const avail   = availableSet.has(dateId);
           const selected = selectedDateId === dateId;
-          const isToday =
-            today.getFullYear() === year &&
-            today.getMonth()    === month &&
-            today.getDate()     === day;
 
           return (
             <div key={dateId} className="flex items-center justify-center h-10">
@@ -84,8 +81,6 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
                     ? "bg-[#800020] text-white"
                     : avail
                     ? "border-2 border-[#6a001a] text-gray-800 hover:bg-[#fdf0f8]"
-                    : isToday
-                    ? "border-2 border-gray-800 text-gray-800"
                     : "text-gray-400 cursor-default"
                   }`}
               >
@@ -100,7 +95,7 @@ function Calendar({ eventDates, selectedDateId, onSelectDate }) {
       {selectedDateId && (() => {
         const dateObj = eventDates.find((d) => d.dateId === selectedDateId);
         return dateObj ? (
-          <TimeSlots times={dateObj.times} />
+          <TimeSlots times={dateObj.availableTimes ?? dateObj.times} />
         ) : null;
       })()}
     </div>
@@ -151,6 +146,7 @@ export default function EventDetailPage() {
   }
 
   const selectedDateObj = event.dates.find((d) => d.dateId === selectedDate);
+  const selectedTimes = selectedDateObj?.availableTimes ?? selectedDateObj?.times ?? [];
 
   return (
     <div>
@@ -212,7 +208,7 @@ export default function EventDetailPage() {
             <div className="border-t border-gray-200 px-6 py-5">
               <p className="text-center font-semibold text-gray-800 mb-4">At what time?</p>
               <div className="flex flex-col gap-3">
-                {selectedDateObj.times.map((t) => {
+                {selectedTimes.map((t) => {
                   const active = selectedTime === t;
                   return (
                     <button
@@ -228,13 +224,16 @@ export default function EventDetailPage() {
                     </button>
                   );
                 })}
+                {selectedTimes.length === 0 && (
+                  <p className="text-center text-sm text-gray-400">Tickets unavailable for this date.</p>
+                )}
               </div>
             </div>
           )}
         </div>
 
         {/* Select Tickets CTA */}
-        {selectedDate && selectedTime && (
+        {selectedDate && selectedTime && selectedTimes.includes(selectedTime) && (
           <div className="mt-10">
             <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">
               Select your Tickets
@@ -260,10 +259,11 @@ function CalendarInner({ eventDates, selectedDateId, onSelectDate, defaultYear, 
   const [year,  setYear]  = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
 
-  const availableSet = new Set(eventDates.map((d) => d.dateId));
+  const availableSet = new Set(
+    eventDates.filter((d) => d.isSellable !== false).map((d) => d.dateId)
+  );
   const daysInMonth  = new Date(year, month + 1, 0).getDate();
   const startDay     = new Date(year, month, 1).getDay();
-  const today        = new Date();
 
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear((y) => y - 1); }
@@ -311,10 +311,6 @@ function CalendarInner({ eventDates, selectedDateId, onSelectDate, defaultYear, 
           const dateId   = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const avail    = availableSet.has(dateId);
           const selected = selectedDateId === dateId;
-          const isToday  =
-            today.getFullYear() === year &&
-            today.getMonth()    === month &&
-            today.getDate()     === day;
 
           return (
             <div key={dateId} className="flex items-center justify-center h-10">
@@ -326,8 +322,6 @@ function CalendarInner({ eventDates, selectedDateId, onSelectDate, defaultYear, 
                     ? "bg-[#800020] text-white"
                     : avail
                     ? "border-2 border-[#6a001a] text-gray-800 hover:bg-[#fdf0f8]"
-                    : isToday
-                    ? "border-2 border-gray-800 text-gray-800"
                     : "text-gray-400 cursor-default"
                   }`}
               >

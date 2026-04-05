@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ChevronDown, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
@@ -37,6 +37,10 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cartItems, cartTotal, FEE, removeFromCart, clearCart } = useCart();
   const { currentUserId } = useAuth();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
 
   const [openStep,        setOpenStep]        = useState(1);
   const [completedSteps,  setCompletedSteps]  = useState(new Set());
@@ -151,9 +155,10 @@ export default function CheckoutPage() {
           cvv: payment.cvv,
           nameOnCard: payment.nameOnCard,
         },
-        items: cartItems.map(({ seat, event, date, time }) => ({
+        items: cartItems.map(({ seat, event, date, time, holdId }) => ({
           eventId: event.eventId,
           seatId: seat.seatId,
+          holdId,
           date,
           time,
           price: seat.basePrice,

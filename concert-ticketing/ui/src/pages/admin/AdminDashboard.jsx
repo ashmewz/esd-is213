@@ -1,17 +1,64 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Pencil, Trash2, Ticket } from "lucide-react";
-import { adminGetEvents, adminDeleteEvent } from "../../api";
+import { Plus, Search, Pencil, Trash2, Ticket, RotateCcw } from "lucide-react";
+import { adminGetEvents, adminDeleteEvent, adminUpdateEvent } from "../../api";
 
-const STATUS_LABELS = { active: "Live", upcoming: "Upcoming", finished: "Finished", deleted: "Deleted" };
+const STATUS_LABELS = { active: "Live", live: "Live", upcoming: "Upcoming", finished: "Finished", deleted: "Deleted" };
 const STATUS_COLORS = {
   active:   "bg-green-100 text-green-700",
+  live:     "bg-green-100 text-green-700",
   upcoming: "bg-blue-100  text-blue-700",
   finished: "bg-gray-200  text-gray-500",
   deleted:  "bg-red-100   text-red-700",
 };
 
 const TABS = ["All", "Live", "Upcoming", "Finished", "Deleted"];
+
+function formatCardDate(event) {
+  const validDates = (event.dates ?? [])
+    .map((entry) => entry.dateId)
+    .filter(Boolean)
+    .sort();
+
+  if (validDates.length === 0) return event.date || null;
+
+  const dates = validDates
+    .map((value) => new Date(`${value}T00:00:00`))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  if (dates.length === 0) return event.date || null;
+
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+
+  if (validDates.length === 1) {
+    return first.toLocaleDateString("en-SG", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const firstDay = first.toLocaleDateString("en-SG", { weekday: "short" });
+  const lastDay = last.toLocaleDateString("en-SG", { weekday: "short" });
+  const firstDate = first.toLocaleDateString("en-SG", { day: "2-digit" });
+  const lastDate = last.toLocaleDateString("en-SG", { day: "2-digit" });
+  const firstMonth = first.toLocaleDateString("en-SG", { month: "short" });
+  const lastMonth = last.toLocaleDateString("en-SG", { month: "short" });
+  const firstYear = first.getFullYear();
+  const lastYear = last.getFullYear();
+
+  if (firstYear === lastYear && firstMonth === lastMonth) {
+    return `${firstDay} ${firstDate} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  if (firstYear === lastYear) {
+    return `${firstDay} ${firstDate} ${firstMonth} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+  }
+
+  return `${firstDay} ${firstDate} ${firstMonth} ${firstYear} - ${lastDay} ${lastDate} ${lastMonth} ${lastYear}`;
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -29,7 +76,7 @@ export default function AdminDashboard() {
   const filtered = events.filter((e) => {
     const matchTab =
       tab === "All" ||
-      (tab === "Live"     && e.status === "active")   ||
+      (tab === "Live"     && (e.status === "active" || e.status === "live"))   ||
       (tab === "Upcoming" && e.status === "upcoming") ||
       (tab === "Finished" && e.status === "finished") ||
       (tab === "Deleted"  && e.status === "deleted");
@@ -40,6 +87,17 @@ export default function AdminDashboard() {
   async function handleDelete(eventId) {
     await adminDeleteEvent(eventId);
     setDeleting(null);
+    load();
+  }
+
+  async function handleRestore(event) {
+    await adminUpdateEvent(event.eventId, {
+      name: event.name,
+      venueName: event.venueName,
+      status: "upcoming",
+      imageUrl: event.imageUrl ?? "",
+      dates: event.dates ?? [],
+    });
     load();
   }
 
@@ -116,7 +174,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <h2 className="font-bold text-gray-900 text-sm leading-snug mt-1 line-clamp-2">{event.name}</h2>
-                <p className="text-xs text-gray-500">{event.date}</p>
+                <p className="text-xs text-gray-500">{formatCardDate(event)}</p>
                 <p className="text-xs text-gray-500">{event.venueName}</p>
 
                 {/* Actions */}
@@ -128,17 +186,27 @@ export default function AdminDashboard() {
                     <Pencil size={12} /> Edit
                   </button>
                   <button
-                    onClick={() => navigate(`/admin/events/${event.eventId}/seatmap`)}
+                    onClick={() => navigate(`/admin/events/${event.eventId}/seatmap`, { state: { event } })}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
                   >
                     <Ticket size={12} /> Seatmap
                   </button>
-                  <button
-                    onClick={() => setDeleting(event.eventId)}
-                    className="flex items-center justify-center px-3 py-2 border border-red-100 rounded-lg text-xs text-red-500 hover:bg-red-50 transition"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {event.status === "deleted" ? (
+                    <button
+                      onClick={() => handleRestore(event)}
+                      className="flex items-center justify-center px-3 py-2 border border-green-100 rounded-lg text-xs text-green-600 hover:bg-green-50 transition"
+                      title="Restore event"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setDeleting(event.eventId)}
+                      className="flex items-center justify-center px-3 py-2 border border-red-100 rounded-lg text-xs text-red-500 hover:bg-red-50 transition"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -158,7 +226,7 @@ export default function AdminDashboard() {
           >
             <h3 className="font-bold text-gray-900 mb-2">Delete Event?</h3>
             <p className="text-sm text-gray-500 mb-5">
-              This will permanently remove the event and all its seat data. This cannot be undone.
+              This will move the event to the Deleted tab and hide it from users. You can restore it later.
             </p>
             <div className="flex gap-2">
               <button
