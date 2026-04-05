@@ -9,19 +9,64 @@ For each SOLD seat that was removed from the new seatmap:
 """
 
 import json
+import os
 import time
 import threading
 import uuid
 
 import pika
+import requests
 
 from app.core.database import SessionLocal
 from app.models.seat_allocation_models import SeatAssignment, ReallocationLog
 from app.messaging.producer import publish_event, RABBITMQ_URL, EXCHANGE_NAME
 from app.messaging.queue_setup import QUEUE_NAME, ROUTING_KEYS
 
+USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://user-service:5000")
+EVENTS_SERVICE_URL = os.getenv("EVENTS_SERVICE_URL", "http://events-service:5000")
+
 MAX_RETRIES = 5
 RETRY_BACKOFF_BASE = 2  # seconds
+
+
+def _get_user_email(user_id: str) -> str | None:
+    if not user_id:
+        return None
+    try:
+        resp = requests.get(f"{USER_SERVICE_URL}/users/{user_id}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json().get("email")
+    except Exception as e:
+        print(f"[seat-allocation] Failed to fetch email for userId={user_id}: {e}")
+    return None
+
+
+def _get_seat_details(event_id: str, seat_id: str) -> dict:
+    try:
+        resp = requests.get(f"{EVENTS_SERVICE_URL}/events/{event_id}/seats/{seat_id}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        print(f"[seat-allocation] Failed to fetch seat details for seatId={seat_id}: {e}")
+    return {}
+
+
+def _get_event_details(event_id: str) -> dict:
+    try:
+        resp = requests.get(f"{EVENTS_SERVICE_URL}/events/{event_id}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        print(f"[seat-allocation] Failed to fetch event details for eventId={event_id}: {e}")
+    return {}
+
+
+def _format_seat_label(seat: dict) -> str:
+    tier = seat.get("tier", "")
+    section = seat.get("sectionNo", "")
+    row = seat.get("rowNo", "")
+    seat_no = seat.get("seatNo", "")
+    return f"{tier} · Section {section} · Row {row} · Seat {seat_no}"
 
 
 def _handle_seat_map_changed(data: dict):
@@ -96,11 +141,31 @@ def _handle_seat_map_changed(data: dict):
                     db.add(log)
                     db.commit()
 
+                    # Mark new seat as sold in events-service
+                    try:
+                        requests.put(
+                            f"{EVENTS_SERVICE_URL}/events/{event_id_str}/seats/{new_seat_id}/status",
+                            json={"status": "sold"},
+                            timeout=5,
+                        )
+                    except Exception as e:
+                        print(f"[seat-allocation] Failed to mark new seat as sold: {e}")
+
+                    email = _get_user_email(assignment.user_id)
+                    old_seat = _get_seat_details(event_id_str, old_seat_id)
+                    new_seat = _get_seat_details(event_id_str, new_seat_id)
+                    event_details = _get_event_details(event_id_str)
                     publish_event("seat.reassigned", {
                         "orderId": str(assignment.order_id),
                         "eventId": event_id_str,
                         "oldSeatId": old_seat_id,
                         "newSeatId": new_seat_id,
+                        "oldSeatLabel": _format_seat_label(old_seat),
+                        "newSeatLabel": _format_seat_label(new_seat),
+                        "eventName": event_details.get("name"),
+                        "venue": event_details.get("venueName"),
+                        "eventDate": event_details.get("date"),
+                        "email": email,
                     })
                     print(f"[seat-allocation] Reassigned order {assignment.order_id}: {old_seat_id} → {new_seat_id}")
                 except Exception as e:
