@@ -32,6 +32,9 @@ def start_swap(order_id, event_id, current_seat_id, desired_tier, current_tier=N
             "status": match["status"],
             "requestADetails": request_a,
             "requestBDetails": request_b,
+            "paymentRequired": match.get("paymentRequired", False),
+            "priceDifference": match.get("priceDifference", 0),
+            "surcharge": match.get("surcharge", 2.0),
         })
 
     return result
@@ -44,6 +47,21 @@ def respond_to_swap(swap_id, user_id, response):
     if status == "READY_FOR_EXECUTION":
         publish_event(EXCHANGE, "swap.completed", {
             "swapId": swap_id
+        })
+    elif status == "PAYMENT_REQUIRED":
+        payer = result.get("payer") or {}
+        payee = result.get("payee") or {}
+        payer_user = get_user(payer.get("userId")) if payer.get("userId") else {}
+        payee_user = get_user(payee.get("userId")) if payee.get("userId") else {}
+        payer["email"] = (payer_user or {}).get("email")
+        payee["email"] = (payee_user or {}).get("email")
+        publish_event(EXCHANGE, "swap.payment_required", {
+            "swapId": swap_id,
+            "payer": payer,
+            "payee": payee,
+            "priceDifference": result.get("priceDifference"),
+            "surcharge": result.get("surcharge", 2.0),
+            "email": payer.get("email"),   # top-level for standard notification routing
         })
     elif status == "FAILED":
         publish_event(EXCHANGE, "swap.failed", {

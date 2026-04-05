@@ -41,20 +41,29 @@ def send_notification(event_type: str, data: dict):
 def _send_swap_matched(data: dict):
     """
     Notify both parties that a match was found and they need to accept or decline.
-    Sends one Telegram alert per user and an email if their address is available.
+    Always includes the $2 surcharge note; also shows any price difference.
     """
-    match_id = data.get("matchId", "N/A")
-    request_a = data.get("requestADetails", {})
-    request_b = data.get("requestBDetails", {})
+    match_id       = data.get("matchId", "N/A")
+    request_a      = data.get("requestADetails", {})
+    request_b      = data.get("requestBDetails", {})
+    price_diff     = data.get("priceDifference", 0)
+    surcharge      = data.get("surcharge", 2.0)
 
     subject = "🔄 Seat Swap Match Found — Action Required"
+
+    price_note = (
+        f"\n💰 Price difference: ${price_diff:.2f} (paid by the user upgrading to a higher tier)."
+        if price_diff else ""
+    )
 
     for party_label, req in [("User A", request_a), ("User B", request_b)]:
         message = (
             f"🔄 A seat swap match has been found!\n"
             f"Match ID:     {match_id}\n"
             f"Your Seat:    tier {req.get('currentTier', 'N/A')}\n"
-            f"Offered Seat: tier {req.get('desiredTier', 'N/A')}\n\n"
+            f"Offered Seat: tier {req.get('desiredTier', 'N/A')}\n"
+            f"{price_note}\n"
+            f"💳 Surcharge: ${surcharge:.2f} per participant (charged to both parties).\n"
             f"Please accept or decline via the app."
         )
         _send_telegram(message)
@@ -72,6 +81,7 @@ def _build_subject(event_type: str) -> str:
         "seat.reassigned":       "📍 Your Seat Has Been Reassigned",
         "payment.refund.issued": "💰 Refund Issued for Your Order",
         "swap.matched":          "🔄 Seat Swap Match Found — Action Required",
+        "swap.payment_required": "💳 Seat Swap — Payment Required",
         "swap.completed":        "🔄 Your Seat Swap is Complete",
         "swap.failed":           "❌ Your Seat Swap Was Declined",
     }
@@ -101,6 +111,22 @@ def _build_message(event_type: str, data: dict) -> str:
             f"Order ID:   {data.get('orderId')}\n"
             f"Amount:     ${data.get('amount')}\n"
             f"Please allow 3-5 business days for processing."
+        )
+    elif event_type == "swap.payment_required":
+        payer     = data.get("payer", {})
+        payee     = data.get("payee", {})
+        diff      = data.get("priceDifference", 0)
+        surcharge = data.get("surcharge", 2.0)
+        total     = diff + surcharge
+        return (
+            f"💳 A payment is required to complete your seat swap.\n"
+            f"Swap ID:           {data.get('swapId', 'N/A')}\n"
+            f"Your current tier: {payer.get('tier', 'N/A')} (${payer.get('basePrice', 0):.2f})\n"
+            f"Swapping to tier:  {payee.get('tier', 'N/A')} (${payee.get('basePrice', 0):.2f})\n"
+            f"Price difference:  ${diff:.2f}\n"
+            f"Surcharge:         ${surcharge:.2f} (flat fee per participant)\n"
+            f"Total to pay:      ${total:.2f}\n\n"
+            f"Please complete the payment in the app to finalise the swap."
         )
     elif event_type == "swap.completed":
         return (

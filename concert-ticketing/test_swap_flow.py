@@ -189,9 +189,27 @@ def run():
     print(f"      swap.matched published → notification-service should email both users")
 
     # ── Step 6: Both users accept ─────────────────────────────────
-    print("\n[6] Both users respond ACCEPTED …")
-    respond_to_swap("lumine", match_id, user_a_id, "ACCEPTED")
-    respond_to_swap("aether", match_id, user_b_id, "ACCEPTED")
+    print("\n[6] Both users respond ACCEPT …")
+    respond_to_swap("lumine", match_id, user_a_id, "ACCEPT")
+    eval_result = respond_to_swap("aether", match_id, user_b_id, "ACCEPT")
+
+    # ── Step 9/10: Check payment requirement ──────────────────────
+    print("\n[9/10] Evaluating payment requirement …")
+    eval_status = eval_result.get("status")
+
+    if eval_status == "PAYMENT_REQUIRED":
+        payer = eval_result.get("payer", {})
+        payee = eval_result.get("payee", {})
+        diff  = eval_result.get("priceDifference", 0)
+        print(f"  [✓] Payment required — price difference: ${diff:.2f}")
+        print(f"      Payer (upgrading): userId={payer.get('userId')}  tier={payer.get('tier')}  basePrice={payer.get('basePrice')}")
+        print(f"      Payee (downgrading): userId={payee.get('userId')}  tier={payee.get('tier')}  basePrice={payee.get('basePrice')}")
+        print(f"      → swap.payment_required published to RabbitMQ")
+    elif eval_status == "READY_FOR_EXECUTION":
+        print(f"  [✓] No payment required (same tier price) — proceeding to execution")
+        print(f"      → swap.completed published to RabbitMQ")
+    else:
+        print(f"  [!] Unexpected evaluation status: {eval_status}")
 
     # ── Step 7: Check final status ────────────────────────────────
     print("\n[7] Checking final swap status …")

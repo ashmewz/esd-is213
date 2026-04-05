@@ -17,6 +17,7 @@ ROUTING_KEYS = [
     "seat.reassigned",        # Scenario B: seat reassigned after seatmap change
     "payment.refund.issued",  # Scenario B: refund issued after seatmap change
     "swap.matched",           # Scenario C: swap match found — notify both users to accept/decline
+    "swap.payment_required",  # Scenario C: price difference requires payment before execution
     "swap.completed",         # Scenario C: swap finalized after both accept
     "swap.failed",            # Scenario C: swap declined by one or both users
 ]

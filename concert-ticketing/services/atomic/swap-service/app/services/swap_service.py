@@ -2,7 +2,24 @@
 from app.core.database import SessionLocal
 from app.models.swap_models import SwapRequest, SwapMatch, SwapConfirmation
 from datetime import datetime, timedelta
+from decimal import Decimal
 import uuid
+
+SWAP_SURCHARGE = Decimal("2.00")  # flat $2 fee charged to both parties on every swap
+
+from sqlalchemy import Column, Numeric, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from app.core.database import Base
+
+
+class _Seat(Base):
+    """Read-only mirror of events_service.seats for cross-schema price lookups."""
+    __tablename__ = "seats"
+    __table_args__ = {"schema": "events_service", "extend_existing": True}
+
+    seat_id = Column(PG_UUID(as_uuid=True), primary_key=True)
+    tier = Column(String(20))
+    base_price = Column(Numeric(10, 2))
 
 
 def create_swap_request(order_id, event_id, current_seat_id, desired_tier, current_tier=None, user_id=None):
@@ -27,10 +44,13 @@ def create_swap_request(order_id, event_id, current_seat_id, desired_tier, curre
 
         match_data = None
         if match:
+            payment_info = calculate_payment_difference(str(match.swap_id))
             match_data = {
                 **match.to_dict(),
                 "requestADetails": request_a.to_dict(),
                 "requestBDetails": request_b.to_dict(),
+                "paymentRequired": payment_info["paymentRequired"],
+                "priceDifference": payment_info["priceDifference"],
             }
 
         return {
@@ -125,6 +145,9 @@ def _evaluate_swap(db, swap_id):
 
     if all(s == "ACCEPT" for s in statuses):
         _persist_match_outcome(db, swap_id, "COMPLETED")
+        payment_info = calculate_payment_difference(swap_id)
+        if payment_info["paymentRequired"]:
+            return {"status": "PAYMENT_REQUIRED", **payment_info}
         return {"status": "READY_FOR_EXECUTION"}
 
     if any(s == "DECLINE" for s in statuses):
@@ -243,5 +266,86 @@ def cancel_swap_request(request_id):
         db.commit()
         db.refresh(req)
         return req.to_dict()
+    finally:
+        db.close()
+
+
+def calculate_payment_difference(swap_id):
+    """
+    Determine the payment breakdown for a matched swap.
+
+    A flat $2.00 surcharge (SWAP_SURCHARGE) is charged to BOTH parties on every
+    swap.  On top of that, if the two seats have different base prices the user
+    upgrading to the more expensive tier also pays the price difference.
+
+    Returns a dict with:
+        paymentRequired (bool)  – always True (surcharge applies to every swap)
+        payer     (dict)        – user paying the price difference (upgrading), or
+                                  req_a when both seats cost the same
+        payee     (dict)        – user receiving the price difference (downgrading),
+                                  or req_b when both seats cost the same
+        priceDifference (float) – absolute seat-price difference; 0.0 when equal
+        surcharge       (float) – flat fee per party ($2.00)
+
+    Raises ValueError if the swap or its requests cannot be found, or if
+    either seat is missing from the events_service.seats table.
+    """
+    db = SessionLocal()
+    try:
+        match = db.query(SwapMatch).filter(SwapMatch.swap_id == swap_id).first()
+        if not match:
+            raise ValueError(f"SwapMatch {swap_id} not found")
+
+        req_a = db.query(SwapRequest).filter(SwapRequest.request_id == match.request_a).first()
+        req_b = db.query(SwapRequest).filter(SwapRequest.request_id == match.request_b).first()
+        if not req_a or not req_b:
+            raise ValueError(f"One or both SwapRequests for match {swap_id} not found")
+
+        seat_a = db.query(_Seat).filter(_Seat.seat_id == req_a.current_seat_id).first()
+        seat_b = db.query(_Seat).filter(_Seat.seat_id == req_b.current_seat_id).first()
+        if not seat_a:
+            raise ValueError(f"Seat {req_a.current_seat_id} not found in events_service.seats")
+        if not seat_b:
+            raise ValueError(f"Seat {req_b.current_seat_id} not found in events_service.seats")
+
+        price_a = Decimal(str(seat_a.base_price))
+        price_b = Decimal(str(seat_b.base_price))
+        diff = abs(price_a - price_b)
+
+        def _party(req, seat):
+            return {
+                "userId": str(req.user_id) if req.user_id else None,
+                "orderId": str(req.order_id),
+                "seatId": str(req.current_seat_id),
+                "tier": seat.tier,
+                "basePrice": float(seat.base_price),
+            }
+
+        if diff == 0:
+            # No price difference — both just pay the surcharge
+            return {
+                "paymentRequired": True,
+                "payer": _party(req_a, seat_a),
+                "payee": _party(req_b, seat_b),
+                "priceDifference": 0.0,
+                "surcharge": float(SWAP_SURCHARGE),
+            }
+
+        # The user moving to the higher-priced seat pays the price difference
+        if price_a > price_b:
+            # price_a > price_b → req_b is upgrading (receiving the more expensive seat_a)
+            payer_req, payer_seat = req_b, seat_b
+            payee_req, payee_seat = req_a, seat_a
+        else:
+            payer_req, payer_seat = req_a, seat_a
+            payee_req, payee_seat = req_b, seat_b
+
+        return {
+            "paymentRequired": True,
+            "payer": _party(payer_req, payer_seat),
+            "payee": _party(payee_req, payee_seat),
+            "priceDifference": float(diff),
+            "surcharge": float(SWAP_SURCHARGE),
+        }
     finally:
         db.close()
