@@ -17,17 +17,12 @@ services:
   - name: swap-requests
     paths:
     - /swap-requests
-    methods: ["POST","OPTIONS"]
+    methods: ["GET","POST","DELETE","OPTIONS"]    
     strip_path: false
   - name: swap-matches
     paths:
     - /swap-matches
-    methods: ["POST","OPTIONS"]
-    strip_path: false
-  - name: swap-status
-    paths:
-    - /swap
-    methods: ["GET","OPTIONS"]
+    methods: ["GET","POST","OPTIONS"]
     strip_path: false
 
 - name: user-service-login

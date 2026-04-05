@@ -18,6 +18,7 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import AccountDetailsPage from "./pages/AccountDetailsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SwapPage from "./pages/SwapPage";
+import SwapDetailPage from "./pages/SwapDetailPage";         // NEW
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -45,47 +46,32 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/admin/login" element={<AdminLoginPage />} />
 
+              {/* Customer-only */}
               <Route
                 path="/tickets"
-                element={
-                  <CustomerRoute>
-                    <MyTicketsPage />
-                  </CustomerRoute>
-                }
+                element={<CustomerRoute><MyTicketsPage /></CustomerRoute>}
               />
               <Route
                 path="/notifications"
-                element={
-                  <CustomerRoute>
-                    <NotificationsPage />
-                  </CustomerRoute>
-                }
+                element={<CustomerRoute><NotificationsPage /></CustomerRoute>}
               />
               <Route
                 path="/account"
-                element={
-                  <CustomerRoute>
-                    <AccountDetailsPage />
-                  </CustomerRoute>
-                }
+                element={<CustomerRoute><AccountDetailsPage /></CustomerRoute>}
               />
               <Route
                 path="/swap"
-                element={
-                  <CustomerRoute>
-                    <SwapPage />
-                  </CustomerRoute>
-                }
+                element={<CustomerRoute><SwapPage /></CustomerRoute>}
+              />
+              <Route
+                path="/swap/:swapId"             // NEW — swap match detail
+                element={<CustomerRoute><SwapDetailPage /></CustomerRoute>}
               />
 
               {/* Admin (protected) */}
               <Route
                 path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminLayout />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}
               >
                 <Route index element={<AdminDashboard />} />
                 <Route path="events/new" element={<AdminEventForm />} />

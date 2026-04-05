@@ -125,7 +125,6 @@ export async function registerUser(username, email, password) {
 export async function loginUser(email, password) {
   try {
     const res = await api.post("/users/login", { email, password });
-    // res.data = { token, user: { user_id, username, email, ... } }
     const { token, user } = res.data;
     return {
       userId: user.user_id,
@@ -401,28 +400,88 @@ export async function getMyOrders(userId) {
 
 // ── Swap ─────────────────────────────────────────────────────────────────────
 export async function getMySwapRequests(userId) {
-  const res = await api.get(`/swap-requests?userId=${userId}`);
-  return res.data;
+  try {
+    const params = userId ? { userId } : {};
+    const res = await api.get("/swap-requests", { params });
+    const raw = res.data;
+    return Array.isArray(raw) ? raw : (raw?.data ?? []);
+  } catch (err) {
+    throw new Error(err.response?.data?.error ?? "Could not load swap requests");
+  }
 }
 
 export async function createSwapRequest(payload) {
-  const res = await api.post("/swap-requests", {
-    orderId: payload.orderId,
-    eventId: payload.eventId,
-    currentSeatId: payload.seatId,
-    desiredTier: payload.desiredTier,
-  });
-  return res.data;
+  try {
+    const raw = localStorage.getItem("stagepass_user");
+    const userId = raw ? JSON.parse(raw)?.userId : null;
+
+    const res = await api.post("/swap-requests", {
+      userId, // ✅ ADD THIS
+      orderId: payload.orderId,
+      eventId: payload.eventId,
+      currentSeatId: payload.seatId ?? payload.currentSeatId,
+      currentTier: payload.currentTier,
+      desiredTier: payload.desiredTier,
+    });
+
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.error ?? "Could not create swap request");
+  }
 }
 
 export async function cancelSwapRequest(requestId) {
-  const res = await api.delete(`/swap-requests/${requestId}`);
-  return res.data;
+  try {
+    const res = await api.delete(`/swap-requests/${requestId}`);
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.error ?? "Could not cancel swap request");
+  }
 }
 
-export async function respondToSwapRequest(swapId, response) {
-  const res = await api.post(`/swap-matches/${swapId}/response`, {
-    response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
-  });
-  return res.data;
+export async function respondToSwapRequest(swapId, response, options = {}) {
+  let userId = options.userId ?? null;
+  if (!userId) {
+    try {
+      const raw = localStorage.getItem("stagepass_user");
+      if (raw) userId = JSON.parse(raw)?.userId ?? null;
+    } catch { /* ignore */ }
+  }
+ 
+  if (!userId) throw new Error("Cannot respond to swap: userId is missing");
+ 
+  const body = {
+    userId,
+    response: response.toUpperCase(),
+  };
+ 
+  if (options.paymentMethodId) {
+    body.paymentMethodId = options.paymentMethodId;
+  }
+ 
+  try {
+    const res = await api.post(`/swap-matches/${swapId}/response`, body);
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.error ?? "Could not submit swap response");
+  }
+}
+
+export async function getSwapDetails(swapId) {
+  try {
+    const res = await api.get(`/swap-matches/${swapId}`);
+    return res.data?.data ?? res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.error ?? "Could not load swap details");
+  }
+}
+
+export async function getSwapPayments(matchId) {
+  try {
+    const res = await api.get(`/swap-payments/${matchId}`);
+    return res.data?.data ?? [];
+  } catch (err) {
+    // Non-fatal: payment records may not exist yet
+    return [];
+  }
 }

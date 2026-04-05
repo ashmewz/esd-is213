@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.core.database import Base
 
@@ -74,7 +74,7 @@ class EventShowtime(Base):
 
     showtime_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_id = Column(UUID(as_uuid=True), nullable=False)
-    date_id = Column(Date, nullable=False)
+    date_id = Column(DateTime, nullable=False)
     label = Column(String, nullable=False)
     times = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime, server_default=func.now())

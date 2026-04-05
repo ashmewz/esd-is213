@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronDown, Mail, Search, Ticket } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ChevronDown, Mail, Search, Ticket, ArrowRightLeft, ExternalLink } from "lucide-react";
 import { getMyOrders } from "../api";
 import { useAuth } from "../context/AuthContext";
 
@@ -10,54 +10,57 @@ const ACCOUNT_LINKS = [
 ];
 
 const FILTER_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "created", label: "Pending" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "refunded", label: "Refunded" },
+  { value: "all",        label: "All" },
+  { value: "confirmed",  label: "Confirmed" },
+  { value: "created",    label: "Pending" },
+  { value: "cancelled",  label: "Cancelled" },
+  { value: "refunded",   label: "Refunded" },
   { value: "reassigned", label: "Reassigned" },
 ];
 
 function formatDate(value) {
   if (!value) return { date: "Date TBC", time: "" };
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return { date: value, time: "" };
-  }
-
+  if (Number.isNaN(parsed.getTime())) return { date: value, time: "" };
   return {
-    date: parsed.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }),
-    time: parsed.toLocaleTimeString("en-SG", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).toLowerCase(),
+    date: parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    time: parsed.toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase(),
   };
 }
 
 function formatStatus(status) {
   if (!status) return "Pending";
   const s = status.toLowerCase();
-  if (s === "confirmed") return "Confirmed";
-  if (s === "created") return "Pending";
-  if (s === "cancelled") return "Cancelled";
-  if (s === "refunded") return "Refunded";
+  if (s === "confirmed")  return "Confirmed";
+  if (s === "created")    return "Pending";
+  if (s === "cancelled")  return "Cancelled";
+  if (s === "refunded")   return "Refunded";
   if (s === "reassigned") return "Reassigned";
   return status;
 }
 
+function StatusDot({ status }) {
+  const s = (status ?? "").toLowerCase();
+  const colors = {
+    confirmed:  "bg-emerald-500",
+    created:    "bg-amber-400",
+    cancelled:  "bg-gray-400",
+    refunded:   "bg-blue-400",
+    reassigned: "bg-violet-500",
+  };
+  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${colors[s] ?? "bg-gray-300"}`} />;
+}
+
 export default function MyTicketsPage() {
   const { currentUserId, logout, user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const [orders,          setOrders]          = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [searchTerm,      setSearchTerm]      = useState("");
+  const [selectedFilter,  setSelectedFilter]  = useState("all");
 
   async function loadOrders() {
     setLoading(true);
@@ -72,25 +75,18 @@ export default function MyTicketsPage() {
     }
   }
 
-  useEffect(() => {
-    loadOrders();
-  }, [currentUserId]);
+  useEffect(() => { loadOrders(); }, [currentUserId]);
 
   const filteredOrders = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-
     return orders.filter((order) => {
       const matchesSearch =
         term === "" ||
         String(order.orderId).toLowerCase().includes(term) ||
         (order.eventName || "").toLowerCase().includes(term) ||
         (order.venueName || "").toLowerCase().includes(term);
-
       const normalizedStatus = (order.status || "").toLowerCase();
-      const matchesFilter =
-        selectedFilter === "all" ||
-        normalizedStatus === selectedFilter;
-
+      const matchesFilter = selectedFilter === "all" || normalizedStatus === selectedFilter;
       return matchesSearch && matchesFilter;
     });
   }, [orders, searchTerm, selectedFilter]);
@@ -98,6 +94,7 @@ export default function MyTicketsPage() {
   return (
     <main className="min-h-[calc(100vh-140px)] bg-white">
       <div className="mx-auto flex max-w-[1500px]">
+        {/* Sidebar */}
         <aside className="hidden min-h-[calc(100vh-140px)] w-[270px] shrink-0 border-r border-gray-200 px-8 py-8 lg:block">
           <p className="text-base font-black uppercase tracking-tight text-gray-900">My Account</p>
           <nav className="mt-10 flex flex-col gap-7">
@@ -105,35 +102,30 @@ export default function MyTicketsPage() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`block text-[14px] ${
-                  item.active ? "font-semibold text-gray-900" : "text-gray-800 hover:text-[#800020]"
-                }`}
+                className={`block text-[14px] ${item.active ? "font-semibold text-gray-900" : "text-gray-800 hover:text-[#800020]"}`}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
           <div className="mt-10 border-t border-gray-200 pt-6">
-            <button
-              onClick={logout}
-              className="text-[14px] font-medium text-gray-800 transition hover:text-[#800020]"
-            >
+            <button onClick={logout} className="text-[14px] font-medium text-gray-800 transition hover:text-[#800020]">
               Log out
             </button>
           </div>
         </aside>
 
+        {/* Main */}
         <section className="min-w-0 flex-1 px-8 py-8 md:px-9 lg:px-10">
           <h1 className="text-lg font-bold text-gray-900 md:text-[24px]">My Tickets</h1>
 
+          {/* Search */}
           <div className="mt-6 flex max-w-[540px] overflow-hidden rounded-lg border border-gray-300 bg-white">
-            <div className="flex items-center px-3 text-gray-400">
-              <Search size={14} />
-            </div>
+            <div className="flex items-center px-3 text-gray-400"><Search size={14} /></div>
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search by event, venue or order ID..."
               className="min-w-0 flex-1 px-1 py-2 text-xs text-gray-800 outline-none"
             />
             <button className="bg-[#2563eb] px-5 text-xs font-medium text-white transition hover:bg-[#1d4ed8]">
@@ -141,33 +133,26 @@ export default function MyTicketsPage() {
             </button>
           </div>
 
+          {/* Filter */}
           <div className="mt-6 border-t border-gray-200 pt-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <label className="text-sm text-gray-900">Filter by Status:</label>
               <select
                 value={selectedFilter}
                 onChange={(e) => setSelectedFilter(e.target.value)}
-                className="w-full max-w-[160px] rounded-lg border border-[#2563eb] px-3 py-1.5 text-xs text-gray-800 outline-none focus:ring-2 focus:ring-[#2563eb]/20"
+                className="w-full max-w-[160px] rounded-lg border border-[#2563eb] px-3 py-1.5 text-xs text-gray-800 outline-none"
               >
                 {FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {loading && (
-            <div className="mt-20 text-center text-base text-gray-400">
-              Loading purchases...
-            </div>
-          )}
+          {loading && <div className="mt-20 text-center text-base text-gray-400">Loading purchases...</div>}
 
           {!loading && error && (
-            <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-              {error}
-            </div>
+            <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div>
           )}
 
           {!loading && !error && filteredOrders.length === 0 && (
@@ -175,7 +160,7 @@ export default function MyTicketsPage() {
               <div className="h-40 w-40 rounded-full bg-[#f5f7ff]" />
               <p className="mt-10 text-4xl font-bold text-gray-900">No Tickets</p>
               <p className="mt-4 max-w-xl text-base text-gray-500">
-                No tickets match your current search or filter. Complete a booking and it will appear here.
+                No tickets match your search or filter. Complete a booking and it will appear here.
               </p>
             </div>
           )}
@@ -185,16 +170,15 @@ export default function MyTicketsPage() {
               {filteredOrders.map((order) => {
                 const expanded = expandedOrderId === order.orderId;
                 const dateTime = formatDate(order.date ?? order.createdAt);
+                const isConfirmed = (order.status ?? "").toLowerCase() === "confirmed";
 
                 return (
                   <article key={order.orderId} className="rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
-                            Order No.
-                          </p>
-                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Order No.</p>
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 font-mono">
                             {order.orderId}
                           </span>
                         </div>
@@ -206,12 +190,15 @@ export default function MyTicketsPage() {
                         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
                           <p>{dateTime.date}{dateTime.time ? ` · ${dateTime.time}` : ""}</p>
                           <p>{order.venueName || "Venue TBC"}</p>
-                          <p>{formatStatus(order.status)}</p>
+                          <div className="flex items-center gap-1.5">
+                            <StatusDot status={order.status} />
+                            {formatStatus(order.status)}
+                          </div>
                         </div>
 
                         <div className="mt-3 flex items-center gap-2 text-sm text-gray-700">
                           <Mail size={14} />
-                          <span>Payment</span>
+                          <span>eTicket</span>
                         </div>
                         <div className="mt-1.5 flex items-center gap-2 text-sm text-[#2563eb]">
                           <Ticket size={14} />
@@ -219,70 +206,68 @@ export default function MyTicketsPage() {
                         </div>
                       </div>
 
-                      <div className="shrink-0">
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                        {isConfirmed && (
+                          <Link
+                            to="/swap"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-[#800020] hover:text-[#800020] transition"
+                          >
+                            <ArrowRightLeft size={14} />
+                            Swap
+                          </Link>
+                        )}
+                        <button
+                          onClick={() => navigate(`/tickets/${order.orderId}`)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                        >
+                          <ExternalLink size={14} />
+                          Full Details
+                        </button>
                         <button
                           onClick={() => setExpandedOrderId(expanded ? null : order.orderId)}
                           className="inline-flex items-center gap-2 rounded-xl border-2 border-[#2563eb] px-5 py-2.5 text-base font-semibold text-[#2563eb] transition hover:bg-blue-50"
                         >
-                          View Details
+                          Quick View
                           <ChevronDown size={18} className={`transition ${expanded ? "rotate-180" : ""}`} />
                         </button>
                       </div>
                     </div>
 
+                    {/* Expanded quick view */}
                     {expanded && (
                       <div className="border-t border-gray-200 bg-[#fafafa] px-5 py-5">
                         <div className="max-w-[860px] rounded-xl border border-gray-200 bg-white p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                            Ticket Details
-                          </p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Ticket Details</p>
 
                           <div className="mt-3 space-y-2.5 text-sm text-gray-700">
+                            {/* Scenario B banner */}
                             {order.scenarioBOutcome && (
-                              <div
-                                className={`rounded-md px-3 py-2.5 text-sm ${
-                                  order.scenarioBOutcome === "reassigned"
-                                    ? "border border-blue-200 bg-blue-50 text-blue-800"
-                                    : "border border-amber-200 bg-amber-50 text-amber-800"
-                                }`}
-                              >
+                              <div className={`rounded-md px-3 py-2.5 text-sm ${
+                                order.scenarioBOutcome === "reassigned"
+                                  ? "border border-blue-200 bg-blue-50 text-blue-800"
+                                  : "border border-amber-200 bg-amber-50 text-amber-800"
+                              }`}>
                                 {order.seatmapMessage}
                               </div>
                             )}
 
-                            <p>
-                              <span className="font-semibold text-gray-900">Venue:</span>{" "}
-                              {order.venueName || "Venue TBC"}
-                            </p>
+                            <p><span className="font-semibold text-gray-900">Venue:</span> {order.venueName || "Venue TBC"}</p>
                             <p>
                               <span className="font-semibold text-gray-900">Event slot:</span>{" "}
                               {order.date ? formatDate(order.date).date : "Date TBC"}{order.time ? `, ${order.time}` : ""}
                             </p>
-                            <p>
-                              <span className="font-semibold text-gray-900">Delivery:</span>{" "}
-                              {String(order.deliveryMethod || "eticket").toUpperCase()}
-                            </p>
-                            <p>
-                              <span className="font-semibold text-gray-900">Email:</span>{" "}
-                              {user?.email || "Not available"}
-                            </p>
-                            {order.refundAmount ? (
-                              <p>
-                                <span className="font-semibold text-gray-900">Refund amount:</span>{" "}
-                                SGD {Number(order.refundAmount).toFixed(2)}
-                              </p>
-                            ) : null}
-                            {order.seatmapUpdatedAt ? (
-                              <p>
-                                <span className="font-semibold text-gray-900">Seat map update:</span>{" "}
-                                {new Date(order.seatmapUpdatedAt).toLocaleString("en-SG")}
-                              </p>
-                            ) : null}
+                            <p><span className="font-semibold text-gray-900">Delivery:</span> {String(order.deliveryMethod || "eticket").toUpperCase()}</p>
+                            <p><span className="font-semibold text-gray-900">Email:</span> {user?.email || "Not available"}</p>
+
+                            {order.refundAmount && (
+                              <p><span className="font-semibold text-gray-900">Refund:</span> SGD {Number(order.refundAmount).toFixed(2)}</p>
+                            )}
 
                             <div>
                               <p className="font-semibold text-gray-900">Seats:</p>
                               <div className="mt-2 flex flex-wrap gap-2">
-                                {order.items.map((item, index) => (
+                                {(order.items ?? []).map((item, index) => (
                                   <span
                                     key={`${order.orderId}-${item.seatId}-${index}`}
                                     className="rounded-full bg-[#f8fafc] px-3 py-1.5 text-xs text-gray-700 ring-1 ring-gray-200"
@@ -292,6 +277,14 @@ export default function MyTicketsPage() {
                                 ))}
                               </div>
                             </div>
+
+                            {/* Link to full detail */}
+                            <button
+                              onClick={() => navigate(`/tickets/${order.orderId}`)}
+                              className="mt-2 text-xs text-[#1d4ed8] underline underline-offset-2 hover:text-blue-800"
+                            >
+                              View full order details →
+                            </button>
                           </div>
                         </div>
                       </div>
