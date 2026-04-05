@@ -156,8 +156,23 @@ function FilterDrawer({ open, onClose, filters, onChange, onClear, eventVenues }
 }
 
 // ── EventCard ──────────────────────────────────────────────────────────────
+function formatEventDate(event) {
+  // Prefer the ISO eventDate field; fall back to the date string
+  const raw = event.eventDate ?? event.date ?? "";
+  // Try parsing as ISO first (e.g. "2026-04-29T00:00:00" or "2026-04-29")
+  const iso = new Date(raw);
+  if (!isNaN(iso.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return iso.toLocaleDateString("en-SG", {
+      weekday: "short", day: "2-digit", month: "short", year: "numeric",
+    });
+  }
+  // Already a human-readable string — return as-is
+  return raw;
+}
+
 function EventCard({ event, onClick }) {
-  const hasTickets = event.status?.toLowerCase() === "active";
+  const status = event.status?.toLowerCase() ?? "";
+  const hasTickets = status === "active" || status === "upcoming";
 
   return (
     <div
@@ -177,7 +192,7 @@ function EventCard({ event, onClick }) {
           Concert
         </span>
         <h2 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h2>
-        <p className="text-xs text-gray-500">{event.date}</p>
+        <p className="text-xs text-gray-500">{formatEventDate(event)}</p>
         <p className="text-xs text-gray-500">{event.venueName}</p>
         <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets

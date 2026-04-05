@@ -1,8 +1,21 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { EVENTS } from "../mock/data";
+import { getEvents } from "../api";
+
+function formatEventDate(event) {
+  const raw = event.eventDate ?? event.date ?? "";
+  const iso = new Date(raw);
+  if (!isNaN(iso.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return iso.toLocaleDateString("en-SG", {
+      weekday: "short", day: "2-digit", month: "short", year: "numeric",
+    });
+  }
+  return raw;
+}
 
 function FeaturedEventCard({ event, onClick }) {
-  const hasTickets = event.status === "active";
+  const status = event.status?.toLowerCase() ?? "";
+  const hasTickets = status === "active" || status === "upcoming";
   return (
     <div
       className="flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer outline outline-1 outline-gray-300 hover:outline-[#800020] hover:shadow-[0_0_20px_4px_rgba(128,0,32,0.35)]"
@@ -20,7 +33,7 @@ function FeaturedEventCard({ event, onClick }) {
           Concert
         </span>
         <h3 className="font-bold text-gray-900 text-sm leading-snug mt-0.5">{event.name}</h3>
-        <p className="text-xs text-gray-500">{event.date}</p>
+        <p className="text-xs text-gray-500">{formatEventDate(event)}</p>
         <p className="text-xs text-gray-500">{event.venueName}</p>
         <p className={`text-xs font-medium mt-0.5 ${hasTickets ? "text-blue-600" : "text-gray-400"}`}>
           {hasTickets
@@ -34,7 +47,27 @@ function FeaturedEventCard({ event, onClick }) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const featuredEvent = EVENTS[0];
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    getEvents().then((data) => setEvents(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
+
+  const upcomingEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return events
+      .filter((e) => {
+        const status = e.status?.toLowerCase() ?? "";
+        if (status === "deleted" || status === "finished") return false;
+        const raw = e.eventDate ?? e.date ?? "";
+        const d = new Date(raw);
+        return !isNaN(d.getTime()) && d >= today;
+      })
+      .sort((a, b) => new Date(a.eventDate ?? a.date) - new Date(b.eventDate ?? b.date));
+  }, [events]);
+
+  const featuredEvent = upcomingEvents[0] ?? null;
 
   return (
     <div className="min-h-screen">
@@ -75,11 +108,15 @@ export default function HomePage() {
         {/* Right image */}
         <div className="hidden lg:flex flex-1 justify-end items-center relative z-10">
           <div className="w-[480px] h-[480px] overflow-hidden rounded-tl-3xl rounded-br-3xl">
-            <img
-              src={featuredEvent.imageUrl}
-              alt={featuredEvent.name}
-              className="w-full h-full object-cover grayscale brightness-75"
-            />
+            {featuredEvent?.imageUrl ? (
+              <img
+                src={featuredEvent.imageUrl}
+                alt={featuredEvent.name}
+                className="w-full h-full object-cover grayscale brightness-75"
+              />
+            ) : (
+              <div className="w-full h-full bg-purple-900/30 flex items-center justify-center text-white/30 text-6xl">🎵</div>
+            )}
           </div>
         </div>
       </section>
@@ -94,7 +131,7 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {EVENTS.map((event) => (
+          {upcomingEvents.map((event) => (
             <FeaturedEventCard
               key={event.eventId}
               event={event}

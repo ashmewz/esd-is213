@@ -116,7 +116,7 @@ export default function SwapPage() {
     try {
       setActingRequestId(requestId);
       setError("");
-      await respondToSwapRequest(requestId, response);
+      await respondToSwapRequest(requestId, currentUserId, response);
       await loadData();
     } catch (err) {
       setError(err.message || "Could not update swap response.");

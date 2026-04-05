@@ -1,10 +1,9 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, CalendarDays, LogOut } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 const NAV = [
-  { to: "/admin",   label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/events",  label: "Events",    icon: CalendarDays },
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
 ];
 
 export default function AdminLayout() {
@@ -13,11 +12,11 @@ export default function AdminLayout() {
 
   function handleLogout() {
     logout();
-    navigate("/", { replace: true });
+    navigate("/admin/login", { replace: true });
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-140px)]">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0">
         <div className="px-6 py-5 border-b border-gray-700">

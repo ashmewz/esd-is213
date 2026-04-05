@@ -18,10 +18,18 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import AccountDetailsPage from "./pages/AccountDetailsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SwapPage from "./pages/SwapPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminEventForm from "./pages/admin/AdminEventForm";
 import AdminSeatmapEditor from "./pages/admin/AdminSeatmapEditor";
+import { useLocation } from "react-router-dom";
+
+function NavbarWrapper() {
+  const { pathname } = useLocation();
+  if (pathname.startsWith("/admin")) return null;
+  return <Navbar />;
+}
 
 export default function App() {
   return (
@@ -29,7 +37,7 @@ export default function App() {
       <AuthProvider>
         <CartProvider>
           <div className="min-h-screen bg-white text-gray-900">
-            <Navbar />
+            <NavbarWrapper />
             <Routes>
               {/* Public */}
               <Route path="/" element={<HomePage />} />
@@ -76,6 +84,9 @@ export default function App() {
                 }
               />
 
+              {/* Admin login (public) */}
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+
               {/* Admin (protected) */}
               <Route
                 path="/admin"
@@ -86,6 +97,7 @@ export default function App() {
                 }
               >
                 <Route index element={<AdminDashboard />} />
+                <Route path="events" element={<AdminDashboard />} />
                 <Route path="events/new" element={<AdminEventForm />} />
                 <Route path="events/:eventId/edit" element={<AdminEventForm />} />
                 <Route path="events/:eventId/seatmap" element={<AdminSeatmapEditor />} />

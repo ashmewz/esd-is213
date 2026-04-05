@@ -2,18 +2,12 @@ import {
   storeGetEvents,
   storeGetEvent,
   storeGetSeatmap,
-  storeGetTierPrices,
-  storeGetSectionConfigs,
   storeGetVisualSections,
-  storeSetVisualSections,
   storeCreateEvent,
   storeUpdateEvent,
   storeDeleteEvent,
-  storeUpdateTierPrices,
-  storeSetSectionConfigs,
   storeCreateOrder,
   storeGetOrdersByUser,
-  storeUpdateOrder,
   storeCreateSwapRequest,
   storeGetSwapRequestsByUser,
   storeCancelSwapRequest,
@@ -266,48 +260,6 @@ export async function getMyNotifications(userId = USER_ID) {
   );
 }
 
-export async function simulateSeatReassignment(orderId) {
-  await delay(350);
-  const orders = storeGetOrdersByUser(USER_ID);
-  const order = orders.find((item) => String(item.orderId) === String(orderId));
-  if (!order) {
-    throw new Error("Order not found.");
-  }
-
-  const reassignedItems = order.items.map((item, index) => ({
-    ...item,
-    originalSeatLabel: item.originalSeatLabel ?? item.seatLabel,
-    seatLabel: `Section ${Math.max(1, (item.sectionNo ?? 1) + 1)} · Row ${String.fromCharCode(66 + index)} · Seat ${Math.max(1, (item.seatNo ?? 1) + 2)}`,
-    sectionNo: Math.max(1, (item.sectionNo ?? 1) + 1),
-    rowNo: String.fromCharCode(66 + index),
-    seatNo: Math.max(1, (item.seatNo ?? 1) + 2),
-  }));
-
-  return storeUpdateOrder(orderId, {
-    status: "reassigned",
-    scenarioBOutcome: "reassigned",
-    seatmapMessage: "Your original seat was affected by a seat map change. We have successfully assigned you a replacement seat.",
-    seatmapUpdatedAt: new Date().toISOString(),
-    items: reassignedItems,
-  });
-}
-
-export async function simulateRefundIssued(orderId) {
-  await delay(350);
-  const orders = storeGetOrdersByUser(USER_ID);
-  const order = orders.find((item) => String(item.orderId) === String(orderId));
-  if (!order) {
-    throw new Error("Order not found.");
-  }
-
-  return storeUpdateOrder(orderId, {
-    status: "refunded",
-    scenarioBOutcome: "refunded",
-    seatmapMessage: "Your original seat could not be reallocated after the seat map change. A full refund has been issued to your original payment method.",
-    refundAmount: order.totalAmount,
-    seatmapUpdatedAt: new Date().toISOString(),
-  });
-}
 
 export async function getMySwapRequests(userId = USER_ID) {
   await delay(250);
@@ -359,25 +311,6 @@ export async function cancelSwapRequest(requestId) {
   return cancelled;
 }
 
-export async function simulateSwapMatch(requestId) {
-  await delay(350);
-  const requests = storeGetSwapRequestsByUser(USER_ID);
-  const request = requests.find((item) => String(item.requestId) === String(requestId));
-  if (!request) {
-    throw new Error("Swap request not found.");
-  }
-  if (request.swapStatus !== "pending") {
-    throw new Error("Only pending requests can be matched.");
-  }
-
-  return storeUpdateSwapRequest(requestId, {
-    swapStatus: "awaiting_confirmation",
-    matchedSeatLabel: `Section ${Math.max(1, (request.seatId % 7) + 1)} · Row B · Seat ${Math.max(1, (request.seatId % 20) + 1)}`,
-    matchedTier: request.desiredTier,
-    priceDelta: request.currentTier === request.desiredTier ? 0 : request.desiredTier === "VIP" ? 100 : request.desiredTier === "CAT1" ? 40 : -20,
-    offerExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-  });
-}
 
 export async function respondToSwapRequest(requestId, response) {
   await delay(350);
@@ -410,19 +343,6 @@ export async function respondToSwapRequest(requestId, response) {
 }
 
 // ── Admin API ──────────────────────────────────────────────────────────────
-export async function adminLogin(username, password) {
-  await delay(300);
-  if (username === "admin" && password === "admin123") {
-    return { userId: 0, username: "admin", role: "admin" };
-  }
-  throw new Error("Invalid credentials");
-}
-
-export async function adminGetEvents() {
-  await delay();
-  return storeGetEvents();
-}
-
 export async function adminCreateEvent(data) {
   await delay(500);
   return storeCreateEvent(data);
@@ -439,32 +359,3 @@ export async function adminDeleteEvent(eventId) {
   return { success: true };
 }
 
-export async function adminGetTierPrices(eventId) {
-  await delay(200);
-  return storeGetTierPrices(eventId);
-}
-
-export async function adminUpdateTierPrices(eventId, prices) {
-  await delay(400);
-  return storeUpdateTierPrices(eventId, prices);
-}
-
-export async function adminGetSectionConfigs(eventId) {
-  await delay(200);
-  return storeGetSectionConfigs(eventId);
-}
-
-export async function adminSetSectionConfigs(eventId, configs) {
-  await delay(400);
-  return storeSetSectionConfigs(eventId, configs);
-}
-
-export async function adminGetVisualSections(eventId) {
-  await delay(200);
-  return storeGetVisualSections(eventId);
-}
-
-export async function adminSetVisualSections(eventId, sections) {
-  await delay(300);
-  return storeSetVisualSections(eventId, sections);
-}

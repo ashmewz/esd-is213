@@ -18,25 +18,41 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Auth / Admin / Notifications (mock only — no backend routes yet) ─────────
+// ── Mock only (no backend route yet) ─────────────────────────────────────────
 export {
   USER_ID,
-  adminLogin,
   getMyNotifications,
-  simulateSeatReassignment,
-  simulateRefundIssued,
-  simulateSwapMatch,
-  adminGetEvents,
   adminCreateEvent,
   adminUpdateEvent,
   adminDeleteEvent,
-  adminGetTierPrices,
-  adminUpdateTierPrices,
-  adminGetSectionConfigs,
-  adminSetSectionConfigs,
-  adminGetVisualSections,
-  adminSetVisualSections,
 } from "./mock/mockApi";
+
+// ── Admin events (real backend) ──────────────────────────────────────────────
+export async function adminGetEvents() {
+  const res = await api.get("/events");
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+// ── Admin login (real backend) ───────────────────────────────────────────────
+export async function adminLogin(username, password) {
+  try {
+    const res = await api.post("/users/login", { email: username, password });
+    const { token, user } = res.data;
+    if ((user.role ?? "customer") !== "admin") {
+      throw new Error("Access denied. Admin credentials required.");
+    }
+    return {
+      userId: user.user_id,
+      username: user.username,
+      email: user.email,
+      role: "admin",
+      token,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.error ?? err.message ?? "Invalid credentials";
+    throw new Error(msg);
+  }
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export async function registerUser(username, email, password) {
@@ -52,13 +68,13 @@ export async function registerUser(username, email, password) {
 export async function loginUser(email, password) {
   try {
     const res = await api.post("/users/login", { email, password });
-    // res.data = { token, user: { user_id, username, email, ... } }
+    // res.data = { token, user: { user_id, username, email, role, ... } }
     const { token, user } = res.data;
     return {
       userId: user.user_id,
       username: user.username,
       email: user.email,
-      role: "customer",
+      role: user.role ?? "customer",
       token,
     };
   } catch (err) {
@@ -67,20 +83,41 @@ export async function loginUser(email, password) {
   }
 }
 
+// ── Admin seatmap ────────────────────────────────────────────────────────────
+export async function adminGetSeats(eventId) {
+  const res = await api.get(`/events/${eventId}/seats`);
+  return res.data;
+}
+
+export async function adminUpdateSeatmap(eventId, removedSeatIds) {
+  const res = await api.put(`/events/${eventId}/seatmap`, { removedSeatIds });
+  return res.data;
+}
+
+export async function adminRestoreSeats(eventId, seatIds) {
+  const res = await api.put(`/events/${eventId}/seats/restore`, { seatIds });
+  return res.data;
+}
+
 // ── Events ──────────────────────────────────────────────────────────────────
 export async function getEvents() {
   const res = await api.get("/events");
   return res.data;
 }
 
+function normaliseEventDates(event) {
+  if (!event || event.dates) return event;
+  // Prefer the ISO eventDate field so dateId is always "YYYY-MM-DD"
+  const raw = event.eventDate ?? event.date ?? "";
+  const isoDate = raw.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+  const timing = event.eventTiming ?? "19:00";
+  event.dates = [{ dateId: isoDate ?? raw, times: [timing] }];
+  return event;
+}
+
 export async function getEvent(eventId) {
   const res = await api.get(`/events/${eventId}`);
-  const event = res.data;
-  // Normalise: backend stores a single `date` string; UI expects `dates: [{ dateId, times }]`
-  if (event && event.date && !event.dates) {
-    event.dates = [{ dateId: event.date, times: ["19:00"] }];
-  }
-  return event;
+  return normaliseEventDates(res.data);
 }
 
 export async function getSeatmap(eventId) {
@@ -88,10 +125,7 @@ export async function getSeatmap(eventId) {
     api.get(`/events/${eventId}/seats`),
     api.get(`/events/${eventId}`),
   ]);
-  const event = eventRes.data;
-  if (event && event.date && !event.dates) {
-    event.dates = [{ dateId: event.date, times: ["19:00"] }];
-  }
+  const event = normaliseEventDates(eventRes.data);
   // Normalise to match shape the UI expects: { seats, event, visualSections }
   // Pass null so SeatmapPage falls back to its built-in VENUE_SECTIONS constant
   return { seats: seatsRes.data, event, visualSections: null };
@@ -211,8 +245,9 @@ export async function cancelSwapRequest(requestId) {
   return res.data;
 }
 
-export async function respondToSwapRequest(swapId, response) {
+export async function respondToSwapRequest(swapId, userId, response) {
   const res = await api.post(`/swap-matches/${swapId}/response`, {
+    userId,
     response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
   });
   return res.data;

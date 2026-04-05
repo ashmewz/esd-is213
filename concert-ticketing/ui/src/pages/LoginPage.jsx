@@ -26,7 +26,11 @@ export default function LoginPage() {
     try {
       const user = await loginUser(email, password);
       login(user);
-      navigate(returnTo || "/", { replace: true });
+      if (user.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate(returnTo || "/", { replace: true });
+      }
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {

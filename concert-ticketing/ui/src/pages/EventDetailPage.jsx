@@ -184,7 +184,14 @@ export default function EventDetailPage() {
       <div className="text-center px-6 py-8 border-b border-gray-100">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{event.name}</h1>
         <p className="text-[#800020] font-medium">{event.venueName}</p>
-        <p className="text-[#800020] text-sm mt-0.5">{event.date}</p>
+        <p className="text-[#800020] text-sm mt-0.5">{(() => {
+          const raw = event.eventDate ?? event.date ?? "";
+          const iso = new Date(raw);
+          if (!isNaN(iso.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+            return iso.toLocaleDateString("en-SG", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+          }
+          return raw;
+        })()}</p>
       </div>
 
       {/* Date picker */}
