@@ -16,7 +16,7 @@ def is_hold_expired(hold):
     return _utc_now() > expiry
 
 
-def create_hold(order_id, event_id, seat_id, ttl_seconds):
+def create_hold(order_id, event_id, seat_id, ttl_seconds, user_id=None):
     if ttl_seconds is None or ttl_seconds <= 0:
         raise ValueError("ttlSeconds must be greater than 0.")
 
@@ -42,6 +42,8 @@ def create_hold(order_id, event_id, seat_id, ttl_seconds):
             # reuse the same row instead of inserting a new one
             existing_hold.status = "ACTIVE"
             existing_hold.expiry = _utc_now() + timedelta(seconds=ttl_seconds)
+            if user_id is not None:
+                existing_hold.user_id = user_id
             db.commit()
             db.refresh(existing_hold)
             return existing_hold
@@ -50,6 +52,7 @@ def create_hold(order_id, event_id, seat_id, ttl_seconds):
             event_id=event_id,
             seat_id=seat_id,
             order_id=order_id,
+            user_id=user_id,
             expiry=_utc_now() + timedelta(seconds=ttl_seconds),
             status="ACTIVE",
         )
@@ -124,6 +127,7 @@ def confirm_hold(hold_id, transaction_id):
             event_id=hold.event_id,
             seat_id=hold.seat_id,
             order_id=hold.order_id,
+            user_id=hold.user_id,
             hold_id=hold.hold_id,
             transaction_id=transaction_id,
             status="SOLD",

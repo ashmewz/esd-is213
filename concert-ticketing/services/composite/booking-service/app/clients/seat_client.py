@@ -2,10 +2,10 @@ import requests
 from config import Config
 
 class SeatClient:
-    def create_hold(self, order_id, event_id, seat_id, ttl_seconds=900):
+    def create_hold(self, order_id, event_id, seat_id, ttl_seconds=900, user_id=None):
         resp = requests.post(
             f"{Config.SEAT_SERVICE_URL}/holds",
-            json={"orderId": order_id, "eventId": event_id, "seatId": seat_id, "ttlSeconds": ttl_seconds}
+            json={"orderId": order_id, "eventId": event_id, "seatId": seat_id, "ttlSeconds": ttl_seconds, "userId": user_id}
         )
         resp.raise_for_status()
         return resp.json()

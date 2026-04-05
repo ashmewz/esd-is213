@@ -16,6 +16,7 @@ def create_hold_route():
     event_id = payload.get("eventId")
     seat_id = payload.get("seatId")
     ttl_seconds = payload.get("ttlSeconds")
+    user_id = payload.get("userId")
 
     if order_id is None or event_id is None or seat_id is None or ttl_seconds is None:
         return jsonify({"error": "orderId, eventId, seatId, and ttlSeconds are required."}), 400
@@ -28,7 +29,7 @@ def create_hold_route():
         return jsonify({"error": "orderId must be a valid integer."}), 400
 
     try:
-        hold = create_hold(order_id, event_id, seat_id, ttl_seconds)
+        hold = create_hold(order_id, event_id, seat_id, ttl_seconds, user_id=user_id)
         return (
             jsonify(
                 {
