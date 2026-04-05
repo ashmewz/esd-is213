@@ -49,6 +49,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
+      - PYTHONUNBUFFERED=1
     ports:
       - "5002:5000"
     networks:
@@ -194,6 +195,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - ENV=production
+      - PYTHONUNBUFFERED=1
     ports:
       - "5008:5000"
     networks:
