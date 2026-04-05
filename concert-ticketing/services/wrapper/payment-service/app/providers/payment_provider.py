@@ -25,3 +25,12 @@ class PaymentProvider(ABC):
         Must never raise — all provider errors should be caught and returned as a failed ChargeResult.
         """
         pass
+
+    @abstractmethod
+    def refund(self, external_ref_id: str, amount: float, currency: str) -> ChargeResult:
+        """Issue a refund against a previous charge identified by external_ref_id.
+
+        Returns a ChargeResult indicating success or failure.
+        Must never raise — all provider errors should be caught and returned as a failed ChargeResult.
+        """
+        pass

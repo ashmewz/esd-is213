@@ -1,15 +1,20 @@
 """
 queue_setup.py
 
-Declare the exchange, queue, and bindings for payment-service.
+Declare the exchange, queue, and bindings for order-service.
 Safe to run multiple times (idempotent).
 """
 
+import os
 import pika
-from app.messaging.producer import RABBITMQ_URL, EXCHANGE_NAME
 
-QUEUE_NAME = "payment_refund_queue"
-ROUTING_KEYS = ["refund.required"]
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+EXCHANGE_NAME = "concert_ticketing"
+QUEUE_NAME = "order_events_queue"
+ROUTING_KEYS = [
+    "seat.reassigned",        # Step 13: update order with new seat
+    "payment.refund.issued",  # Step 13: cancel order after refund
+]
 
 
 def setup_queues():
