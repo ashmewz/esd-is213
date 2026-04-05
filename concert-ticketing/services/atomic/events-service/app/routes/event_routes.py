@@ -70,8 +70,6 @@ def get_seat(event_id, seat_id):
         seat = db.query(Seat).filter_by(seat_id=seat_id, event_id=event_id).first()
         if seat is None:
             return jsonify({"error": "Seat not found"}), 404
-        if seat.status.lower() != "available":
-            return jsonify({"error": "Seat is not available"}), 409
         return jsonify(_seat_response(seat)), 200
     finally:
         db.close()
