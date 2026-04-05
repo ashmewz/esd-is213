@@ -1,14 +1,19 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Plus, Trash2, Eye, EyeOff, Undo2, Move } from "lucide-react";
 import {
-  adminGetEvents,
+  getEvent,
   adminGetTierPrices,
   adminUpdateTierPrices,
   adminGetVisualSections,
   adminSetVisualSections,
 } from "../../api";
-import { dataSectionToTier, TIER_TO_DATA_SECTION } from "../../mock/venueData";
+import {
+  getCustomDataSectionForTier,
+  getDefaultDataSectionForTier,
+  getFixedVenueSections,
+  getTierForSection,
+} from "../../seatmapLayouts";
 
 // ── Tier config ────────────────────────────────────────────────────────────
 const TIERS = [
@@ -36,7 +41,7 @@ function formatAge(ts) {
 }
 
 // ── Interactive SVG Preview ────────────────────────────────────────────────
-function SeatmapPreview({ visualSecs, onDragStart, onSectionMove, onDragEnd }) {
+function SeatmapPreview({ venueName, visualSecs, onDragStart, onSectionMove, onDragEnd }) {
   const svgRef   = useRef(null);
   const dragging = useRef(null); // { id, startSVGX, startSVGY, origX, origY }
   const [dragId, setDragId] = useState(null); // for cursor CSS only
@@ -56,7 +61,14 @@ function SeatmapPreview({ visualSecs, onDragStart, onSectionMove, onDragEnd }) {
     e.preventDefault();
     e.stopPropagation();
     const { x, y } = getSVGCoords(e.clientX, e.clientY);
-    dragging.current = { id: sec.id, startSVGX: x, startSVGY: y, origX: sec.x, origY: sec.y };
+    dragging.current = {
+      id: sec.id,
+      startSVGX: x,
+      startSVGY: y,
+      origX: sec.x,
+      origY: sec.y,
+      origPts: sec.pts ? sec.pts.map((p) => [...p]) : null,
+    };
     setDragId(sec.id);
     onDragStart(sec.id);
   }
@@ -66,9 +78,17 @@ function SeatmapPreview({ visualSecs, onDragStart, onSectionMove, onDragEnd }) {
     const { x, y } = getSVGCoords(e.clientX, e.clientY);
     const dx = x - dragging.current.startSVGX;
     const dy = y - dragging.current.startSVGY;
-    const newX = Math.max(0, Math.min(698, Math.round(dragging.current.origX + dx)));
-    const newY = Math.max(0, Math.min(570, Math.round(dragging.current.origY + dy)));
-    onSectionMove(dragging.current.id, newX, newY);
+    if (dragging.current.origPts) {
+      const newPts = dragging.current.origPts.map(([px, py]) => [
+        Math.round(px + dx),
+        Math.round(py + dy),
+      ]);
+      onSectionMove(dragging.current.id, null, null, newPts);
+    } else {
+      const newX = Math.max(0, Math.min(698, Math.round(dragging.current.origX + dx)));
+      const newY = Math.max(0, Math.min(570, Math.round(dragging.current.origY + dy)));
+      onSectionMove(dragging.current.id, newX, newY, null);
+    }
   }, [onSectionMove]);
 
   const handleMouseUp = useCallback(() => {
@@ -89,39 +109,74 @@ function SeatmapPreview({ visualSecs, onDragStart, onSectionMove, onDragEnd }) {
       onMouseLeave={handleMouseUp}
     >
       {/* Stage */}
-      <rect x={175} y={5} width={350} height={62} fill="#111" rx={3} />
-      <text x={350} y={43} textAnchor="middle" fill="white" fontSize={22} fontWeight="bold" letterSpacing={4}>
-        STAGE
-      </text>
-      {/* Catwalk */}
-      <rect x={263} y={67} width={174} height={126} fill="#111" rx={2} />
+      {venueName === "Singapore Indoor Stadium" || venueName === "Capitol Theatre" || venueName === "Arena @ EXPO (Hall 7)" || venueName === "Mediacorp Theatre" || venueName === "The Star Theatre" ? (
+        <>
+          <rect x={190} y={5} width={320} height={55} fill="#111" rx={3} />
+          <text x={350} y={39} textAnchor="middle" fill="white" fontSize={20} fontWeight="bold" letterSpacing={4}>
+            STAGE
+          </text>
+        </>
+      ) : (
+        <>
+          <rect x={175} y={5} width={350} height={62} fill="#111" rx={3} />
+          <text x={350} y={43} textAnchor="middle" fill="white" fontSize={22} fontWeight="bold" letterSpacing={4}>
+            STAGE
+          </text>
+          <rect x={263} y={67} width={174} height={126} fill="#111" rx={2} />
+        </>
+      )}
 
       {visualSecs.map((sec) => {
-        const tier     = dataSectionToTier(sec.dataSection);
+        const tier     = getTierForSection(venueName, sec.dataSection);
         const isHidden = sec.hidden === true;
         const isDragging = dragId === sec.id;
         const fill   = isHidden ? "#9ca3af" : (TIER_HEX[tier] ?? "#93c5fd");
         const opac   = isHidden ? 0.4 : isDragging ? 1 : 0.85;
         const stroke = isDragging ? "white" : "rgba(255,255,255,0.5)";
         const sw     = isDragging ? 2 : 1;
-        const cx = sec.x + sec.w / 2;
-        const cy = sec.y + sec.h / 2;
-        const lines = (sec.label ?? sec.id).split("\n");
+        const cx = sec.shape === "polygon"
+          ? sec.pts.reduce((sum, point) => sum + point[0], 0) / sec.pts.length
+          : sec.x + sec.w / 2;
+        const cy = sec.shape === "polygon"
+          ? sec.pts.reduce((sum, point) => sum + point[1], 0) / sec.pts.length
+          : sec.y + sec.h / 2;
+        const tierLabel = tier === "VIP" ? "VIP"
+          : tier === "CAT1" ? "CAT 1"
+          : tier === "CAT2" ? "CAT 2"
+          : tier === "CAT3" ? "CAT 3"
+          : null;
+        // Multiline labels (e.g. "STANDING\nPEN A") keep their original text; others show tier
+        const lines = sec.multiline
+          ? (sec.label ?? sec.id).split("\n")
+          : [tierLabel ?? (sec.label ?? sec.id)];
+        const secW = sec.shape === "polygon"
+          ? Math.max(...sec.pts.map((point) => point[0])) - Math.min(...sec.pts.map((point) => point[0]))
+          : sec.w;
 
         return (
           <g key={sec.id}
             style={{ cursor: isDragging ? "grabbing" : "grab" }}
             onMouseDown={(e) => handleMouseDown(e, sec)}
           >
-            <rect x={sec.x} y={sec.y} width={sec.w} height={sec.h}
-              fill={fill} fillOpacity={opac}
-              stroke={stroke} strokeWidth={sw} rx={2} />
+            {sec.shape === "polygon" ? (
+              <polygon
+                points={sec.pts.map((point) => point.join(",")).join(" ")}
+                fill={fill}
+                fillOpacity={opac}
+                stroke={stroke}
+                strokeWidth={sw}
+              />
+            ) : (
+              <rect x={sec.x} y={sec.y} width={sec.w} height={sec.h}
+                fill={fill} fillOpacity={opac}
+                stroke={stroke} strokeWidth={sw} rx={2} />
+            )}
             {lines.map((line, li) => (
               <text key={li} x={cx}
                 y={cy + (lines.length === 1 ? 4 : li === 0 ? -3 : 10)}
                 textAnchor="middle"
                 fill={isHidden ? "#e5e7eb" : "white"}
-                fontSize={sec.multiline ? 8 : Math.min(10, sec.w / (line.length + 1) + 1)}
+                fontSize={sec.multiline ? 8 : Math.min(10, secW / (line.length + 1) + 1)}
                 fontWeight="600"
                 style={{ pointerEvents: "none" }}
               >
@@ -141,8 +196,10 @@ const BLANK_FORM = { label: "", tier: "CAT3", x: 0, y: 0, w: 64, h: 50 };
 export default function AdminSeatmapEditor() {
   const { eventId } = useParams();
   const navigate    = useNavigate();
+  const location    = useLocation();
+  const initialEvent = location.state?.event ?? null;
 
-  const [event,       setEvent]       = useState(null);
+  const [event,       setEvent]       = useState(initialEvent);
   const [tab,         setTab]         = useState("Tier Prices");
 
   // Tier prices
@@ -178,16 +235,42 @@ export default function AdminSeatmapEditor() {
   }, [history, historyKey]);
 
   useEffect(() => {
+    let alive = true;
+
+    // Load event + visual sections together so backend data takes priority over fixed layout
     Promise.all([
-      adminGetEvents().then((evts) => evts.find((e) => e.eventId === Number(eventId))),
-      adminGetTierPrices(eventId),
-      adminGetVisualSections(eventId),
-    ]).then(([ev, p, vs]) => {
+      getEvent(eventId),
+      adminGetVisualSections(eventId).catch(() => []),
+    ]).then(([ev, vs]) => {
+      if (!alive) return;
       setEvent(ev);
+      const fixed = getFixedVenueSections(ev?.venueName ?? "");
+      if (Array.isArray(vs) && vs.length > 0) {
+        const savedHasPolygons  = vs.some((s) => s.shape === "polygon");
+        const fixedNeedsPolygons = fixed?.some((s) => s.shape === "polygon");
+        const fixedIds          = fixed ? new Set(fixed.map((s) => s.id)) : null;
+        const backendMatchesFix = fixedIds ? vs.some((s) => fixedIds.has(s.id)) : true;
+        const isStale = (fixedNeedsPolygons && !savedHasPolygons) || (fixedIds && !backendMatchesFix);
+        if (isStale) {
+          if (fixed) setVisualSecs(fixed.map((s) => ({ ...s })));
+        } else {
+          setVisualSecs(vs.map((s) => ({ ...s })));
+        }
+      } else {
+        // Nothing saved yet — seed from fixed venue layout
+        if (fixed) setVisualSecs(fixed.map((s) => ({ ...s })));
+      }
+    });
+
+    adminGetTierPrices(eventId).then((p) => {
+      if (!alive) return;
       setPrices(p);
       setPriceDraft(Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])));
-      setVisualSecs(vs.map((s) => ({ ...s })));
     });
+
+    return () => {
+      alive = false;
+    };
   }, [eventId]);
 
   // ── History helpers ──────────────────────────────────────────────────────
@@ -255,7 +338,13 @@ export default function AdminSeatmapEditor() {
     const newSec = {
       id:          newId,
       label:       addForm.label.trim(),
-      dataSection: TIER_TO_DATA_SECTION[addForm.tier] ?? 6,
+      dataSection: getCustomDataSectionForTier(
+        event?.venueName ?? "",
+        addForm.tier,
+        addForm.label.trim(),
+        visualSecs
+      ) ?? getDefaultDataSectionForTier(event?.venueName ?? "", addForm.tier),
+      tier:        addForm.tier,
       x:           Number(addForm.x),
       y:           Number(addForm.y),
       w:           Number(addForm.w),
@@ -273,7 +362,13 @@ export default function AdminSeatmapEditor() {
     e.preventDefault();
     setSecSaving(true);
     try {
-      const updated = await adminSetVisualSections(eventId, visualSecs);
+      const updated = await adminSetVisualSections(
+        eventId,
+        visualSecs.map((section) => ({
+          ...section,
+          tier: section.tier ?? getTierForSection(event?.venueName ?? "", section.dataSection),
+        }))
+      );
       setVisualSecs(updated.map((s) => ({ ...s })));
       setSecSaved(true);
     } finally {
@@ -286,9 +381,13 @@ export default function AdminSeatmapEditor() {
     dragSnapshotRef.current = { id, prevSecs: visualSecs.map((s) => ({ ...s })) };
   }, [visualSecs]);
 
-  const handleSectionMove = useCallback((id, newX, newY) => {
+  const handleSectionMove = useCallback((id, newX, newY, newPts) => {
     setVisualSecs((prev) =>
-      prev.map((s) => s.id === id ? { ...s, x: newX, y: newY } : s)
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        if (newPts) return { ...s, pts: newPts };
+        return { ...s, x: newX, y: newY };
+      })
     );
   }, []);
 
@@ -299,21 +398,26 @@ export default function AdminSeatmapEditor() {
 
     const curSec  = visualSecsRef.current.find((s) => s.id === id);
     const prevSec = snapshot.prevSecs.find((s) => s.id === id);
-    if (curSec && prevSec && (curSec.x !== prevSec.x || curSec.y !== prevSec.y)) {
-      record("moved", curSec.label, snapshot.prevSecs);
-      setSecSaved(false);
+    if (curSec && prevSec) {
+      const moved = curSec.shape === "polygon"
+        ? JSON.stringify(curSec.pts) !== JSON.stringify(prevSec.pts)
+        : (curSec.x !== prevSec.x || curSec.y !== prevSec.y);
+      if (moved) {
+        record("moved", curSec.label, snapshot.prevSecs);
+        setSecSaved(false);
+      }
     }
   }, []);
 
   const grouped = useMemo(() => {
     const map = {};
     visualSecs.forEach((s) => {
-      const tier = dataSectionToTier(s.dataSection);
+      const tier = getTierForSection(event?.venueName ?? "", s.dataSection);
       if (!map[tier]) map[tier] = [];
       map[tier].push(s);
     });
     return map;
-  }, [visualSecs]);
+  }, [event?.venueName, visualSecs]);
 
   const canUndo = history.length > 0;
   const handleUndoLast = () => handleUndoTo(history.length - 1);
@@ -563,6 +667,7 @@ export default function AdminSeatmapEditor() {
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <SeatmapPreview
+            venueName={event?.venueName ?? ""}
             visualSecs={visualSecs}
             onDragStart={handleDragStart}
             onSectionMove={handleSectionMove}
@@ -573,8 +678,8 @@ export default function AdminSeatmapEditor() {
         {/* Legend */}
         <div className="mt-5 flex flex-wrap gap-3">
           {TIERS.map(({ key, label, hex }) => {
-            const visible = visualSecs.filter((s) => dataSectionToTier(s.dataSection) === key && !s.hidden).length;
-            const hidden  = visualSecs.filter((s) => dataSectionToTier(s.dataSection) === key && s.hidden).length;
+            const visible = visualSecs.filter((s) => getTierForSection(event?.venueName ?? "", s.dataSection) === key && !s.hidden).length;
+            const hidden  = visualSecs.filter((s) => getTierForSection(event?.venueName ?? "", s.dataSection) === key && s.hidden).length;
             if (visible + hidden === 0) return null;
             return (
               <div key={key} className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-3 py-2 shadow-sm text-xs">

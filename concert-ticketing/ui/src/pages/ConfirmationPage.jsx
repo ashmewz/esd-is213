@@ -31,7 +31,7 @@ export default function ConfirmationPage() {
 
   useEffect(() => {
     if (!hasOrder || hasClearedRef.current) return;
-    clearCart();
+    clearCart({ releaseSeats: false });
     hasClearedRef.current = true;
   }, [clearCart, hasOrder]);
 

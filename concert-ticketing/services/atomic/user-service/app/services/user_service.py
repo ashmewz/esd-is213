@@ -13,6 +13,19 @@ JWT_EXPIRY_HOURS = 24
 class UserService:
 
     @staticmethod
+    def _issue_token(user):
+        role = user.role or "customer"
+        payload = {
+            "sub": str(user.user_id),
+            "email": user.email,
+            "username": user.username,
+            "role": role,
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
+        }
+        return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+    @staticmethod
     def register_user(db, data):
         existing = UserRepository.get_user_by_email(db, data["email"])
         if existing:
@@ -25,6 +38,7 @@ class UserService:
             username=data["username"],
             email=data["email"],
             password=hashed.decode("utf-8"),
+            role="customer",
         )
 
         # publish_event("user.created", user.to_dict())
@@ -39,15 +53,19 @@ class UserService:
         if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
             raise Exception("Invalid credentials")
 
-        payload = {
-            "sub": str(user.user_id),
-            "email": user.email,
-            "username": user.username,
-            "role": "customer",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
-        }
-        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        token = UserService._issue_token(user)
+        return token, user
+
+    @staticmethod
+    def login_admin(db, username, password):
+        user = UserRepository.get_user_by_username(db, username)
+        if not user or (user.role or "").lower() != "admin":
+            raise Exception("Invalid admin credentials")
+
+        if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+            raise Exception("Invalid admin credentials")
+
+        token = UserService._issue_token(user)
         return token, user
 
     @staticmethod

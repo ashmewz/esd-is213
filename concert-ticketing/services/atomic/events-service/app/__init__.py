@@ -1,3 +1,4 @@
+import os
 import uuid
 from flask import Flask, jsonify
 from app.routes.event_routes import event_bp
@@ -60,6 +61,7 @@ def create_app():
 
     app.register_blueprint(event_bp)
 
-    _seed_db()
+    if os.getenv("SEED_TEMP_EVENTS", "").lower() in {"1", "true", "yes"}:
+        _seed_db()
 
     return app

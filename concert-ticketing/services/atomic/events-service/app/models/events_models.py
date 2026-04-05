@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.core.database import Base
 
@@ -68,3 +68,89 @@ class Seat(Base):
         }
 
 
+class EventShowtime(Base):
+    __tablename__ = "event_showtimes"
+    __table_args__ = {"schema": "events_service"}
+
+    showtime_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    date_id = Column(DateTime, nullable=False)
+    label = Column(String, nullable=False)
+    times = Column(JSONB, nullable=False, default=list)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "showtimeId": str(self.showtime_id),
+            "eventId": str(self.event_id),
+            "dateId": self.date_id.isoformat() if self.date_id else None,
+            "label": self.label,
+            "times": self.times or [],
+        }
+
+
+class EventVisualSection(Base):
+    __tablename__ = "event_visual_sections"
+    __table_args__ = {"schema": "events_service"}
+
+    visual_section_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    section_code = Column(String, nullable=False)
+    label = Column(String, nullable=False)
+    data_section = Column(Integer, nullable=False)
+    x = Column(Numeric(10, 2), nullable=True)
+    y = Column(Numeric(10, 2), nullable=True)
+    w = Column(Numeric(10, 2), nullable=True)
+    h = Column(Numeric(10, 2), nullable=True)
+    multiline = Column(Boolean, nullable=False, default=False)
+    hidden = Column(Boolean, nullable=False, default=False)
+    shape = Column(String, nullable=True)
+    pts = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "visualSectionId": str(self.visual_section_id),
+            "eventId": str(self.event_id),
+            "sectionCode": self.section_code,
+            "label": self.label,
+            "dataSection": self.data_section,
+            "x": float(self.x) if self.x is not None else None,
+            "y": float(self.y) if self.y is not None else None,
+            "w": float(self.w) if self.w is not None else None,
+            "h": float(self.h) if self.h is not None else None,
+            "multiline": self.multiline,
+            "hidden": self.hidden,
+            "shape": self.shape,
+            "pts": self.pts,
+        }
+
+
+class Hold(Base):
+    __tablename__ = "holds"
+    __table_args__ = {"schema": "seat_allocation_service"}
+
+    hold_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    seat_id = Column(UUID(as_uuid=True), nullable=False)
+    order_id = Column(Integer, nullable=False)
+    expiry = Column(DateTime, nullable=False)
+    status = Column(String(20), default="ACTIVE")
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SeatAssignment(Base):
+    __tablename__ = "seat_assignments"
+    __table_args__ = {"schema": "seat_allocation_service"}
+
+    seat_assign_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), nullable=False)
+    seat_id = Column(UUID(as_uuid=True), nullable=False)
+    order_id = Column(Integer, nullable=False)
+    hold_id = Column(UUID(as_uuid=True), nullable=False)
+    transaction_id = Column(String(100), nullable=True)
+    status = Column(String(20), nullable=False)
+    assigned_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

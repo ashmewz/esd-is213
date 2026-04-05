@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 class UserRepository:
 
     @staticmethod
-    def create_user(db: Session, username, email, password):
-        user = User(username=username, email=email, password=password)
+    def create_user(db: Session, username, email, password, role="customer"):
+        user = User(username=username, email=email, password=password, role=role)
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -18,6 +18,10 @@ class UserRepository:
     @staticmethod
     def get_user_by_email(db: Session, email):
         return db.query(User).filter(User.email == email).first()
+
+    @staticmethod
+    def get_user_by_username(db: Session, username):
+        return db.query(User).filter(User.username == username).first()
 
     @staticmethod
     def get_all_users(db: Session):
