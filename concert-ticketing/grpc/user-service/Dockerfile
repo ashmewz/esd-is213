@@ -3,6 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV ENV=production
 
+# Install necessary dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -10,22 +11,21 @@ RUN apt-get update && apt-get install -y \
     curl \
  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+# Copy the requirements file and install dependencies
+COPY requirements.txt . 
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
+# Copy the rest of the application code
 COPY . .
 
-EXPOSE 5000
+EXPOSE 5000 
 EXPOSE 50051
 
-ENV FLASK_APP=app.py
+# Set environment variables for Flask app
+ENV FLASK_APP=main.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
 ENV PYTHONPATH=/app
 
-COPY entrypoint.sh /entrypoint.sh
-COPY migrate.py /app/migrate.py
-RUN chmod +x /entrypoint.sh
-
-CMD ["/entrypoint.sh"]
+# Command to run the app with Gunicorn
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "main:app"]

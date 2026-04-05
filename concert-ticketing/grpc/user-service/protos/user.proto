@@ -17,12 +17,12 @@ service UserService {
 
 message User {
   string id = 1;
-  string name = 2;
+  string username = 2;
   string email = 3;
 }
 
 message CreateUserRequest {
-  string name = 1;
+  string username = 1;
   string email = 2;
   string password = 3;
 }

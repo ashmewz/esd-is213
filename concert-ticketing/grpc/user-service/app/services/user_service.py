@@ -1,6 +1,8 @@
 import bcrypt, jwt
 from datetime import datetime, timezone, timedelta
 import os
+from app.core.database import SessionLocal
+from app.models.user_model import User
 
 JWT_SECRET = os.getenv("JWT_SECRET", "stagepass-secret-key")
 JWT_ALGORITHM = "HS256"
@@ -12,34 +14,52 @@ class UserService:
 
     @staticmethod
     def register_user(data):
-        for user in UserService._users.values():
-            if user["email"] == data["email"]:
-                raise Exception("User already exists")
-        hashed = bcrypt.hashpw(data["password"].encode("utf-8"), bcrypt.gensalt())
-        user = {
-            "id": UserService._next_id,
-            "username": data["username"],
-            "email": data["email"],
-            "password": hashed.decode("utf-8")
-        }
-        UserService._users[UserService._next_id] = user
-        UserService._next_id += 1
-        return user
+        db = SessionLocal()
+
+        existing = db.query(User).filter(User.email == data["email"]).first()
+        if existing:
+            raise Exception("User already exists")
+
+        hashed = bcrypt.hashpw(
+            data["password"].encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        user = User(
+            username=data["username"],
+            email=data["email"],
+            password=hashed
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return user.to_dict()
 
     @staticmethod
     def login_user(email, password):
-        for user in UserService._users.values():
-            if user["email"] == email and bcrypt.checkpw(password.encode("utf-8"), user["password"].encode("utf-8")):
-                payload = {
-                    "sub": str(user["id"]),
-                    "email": user["email"],
-                    "username": user["username"],
-                    "iat": datetime.now(timezone.utc),
-                    "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)
-                }
-                token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-                return token, user
-        raise Exception("Invalid credentials")
+        db = SessionLocal()
+        user = db.query(User).filter(User.email == email).first()
+
+        if not user:
+            raise Exception("Invalid credentials")
+
+        if not bcrypt.checkpw(
+            password.encode("utf-8"),
+            user.password.encode("utf-8")
+        ):
+            raise Exception("Invalid credentials")
+
+        payload = {
+            "sub": str(user.user_id),
+            "email": user.email,
+            "username": user.username
+        }
+
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+        return token, user.to_dict()
 
     @classmethod
     def get_user(user_id):

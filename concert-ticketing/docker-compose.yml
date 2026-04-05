@@ -90,7 +90,7 @@ services:
     container_name: user-service
     restart: on-failure
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://postgres.ygajnlecmnnwzltikbee:whysohardhuh@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
     ports:

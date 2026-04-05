@@ -11,3 +11,4 @@ PyJWT
 grpcio
 grpcio-tools
 SQLAlchemy
+gunicorn
