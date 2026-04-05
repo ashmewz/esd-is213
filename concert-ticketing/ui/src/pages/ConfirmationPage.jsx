@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle2, Ticket, Mail, CalendarDays, MapPin, ArrowRight } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-SG", {
@@ -20,6 +21,8 @@ export default function ConfirmationPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { clearCart, FEE } = useCart();
+  const { user } = useAuth();
+  const accountEmail = user?.email ?? "your registered email";
   const hasClearedRef = useRef(false);
 
   const cartItems = state?.cartItems ?? [];
@@ -100,7 +103,7 @@ export default function ConfirmationPage() {
                   </p>
                   <h1 className="mt-2 text-3xl font-bold text-gray-900">Your tickets are on the way.</h1>
                   <p className="mt-2 text-sm leading-6 text-gray-600">
-                    A confirmation email will be sent to {form?.email || "your nominated email"} with your e-ticket details.
+                    A confirmation email will be sent to {accountEmail} with your e-ticket details.
                   </p>
                 </div>
               </div>
@@ -136,7 +139,7 @@ export default function ConfirmationPage() {
                     Delivery
                   </div>
                   <p className="mt-3 text-sm font-semibold text-gray-900">eTicket</p>
-                  <p className="text-sm text-gray-500">{form?.email || "Email pending"}</p>
+                  <p className="text-sm text-gray-500">{accountEmail}</p>
                 </div>
               </div>
 
@@ -185,7 +188,7 @@ export default function ConfirmationPage() {
               <div className="mt-8 rounded-2xl bg-white p-5 ring-1 ring-gray-200">
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-400">What Happens Next</p>
                 <div className="mt-3 space-y-2 text-sm leading-6 text-gray-600">
-                  <p>Your e-ticket has been sent to {form?.email || "user@email.com"}.</p>
+                  <p>Your e-ticket has been sent to {accountEmail}.</p>
                   <p>Please present the ticket QR or PDF at entry.</p>
                   <p>If you do not receive it within a few minutes, check your spam folder.</p>
                 </div>

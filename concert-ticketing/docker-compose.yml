@@ -14,9 +14,9 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
   # microservices ----------------------------------
   events-service:
@@ -37,9 +37,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
   seat-allocation-service:
     build: ./services/atomic/seat-allocation-service
@@ -49,6 +49,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - ENV=production
+      - PYTHONUNBUFFERED=1
     ports:
       - "5002:5000"
     networks:
@@ -59,9 +60,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
   swap-service:
     build: ./services/atomic/swap-service
@@ -81,9 +82,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
   user-service:
     build: ./grpc/user-service
@@ -105,9 +106,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
   # Composite services depend on atomic services being healthy ----
   booking-service:
@@ -133,7 +134,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 20s
 
@@ -157,7 +158,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 20s
 
@@ -172,6 +173,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - EMAIL_FROM=${EMAIL_FROM}
       - ENV=production
+      - PYTHONUNBUFFERED=1
     ports:
       - "5007:5000"
     networks:
@@ -182,7 +184,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 20s
 
@@ -195,6 +197,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - ENV=production
+      - PYTHONUNBUFFERED=1
     ports:
       - "5008:5000"
     networks:
@@ -205,7 +208,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 20s
 
@@ -251,7 +254,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 20s
 
 networks:
   ticketing-network:
