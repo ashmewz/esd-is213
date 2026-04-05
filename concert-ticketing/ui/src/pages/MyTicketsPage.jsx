@@ -11,11 +11,11 @@ const ACCOUNT_LINKS = [
 
 const FILTER_OPTIONS = [
   { value: "all", label: "All" },
-  { value: "confirmed", label: "Ticket Verification" },
-  { value: "reassigned", label: "Completed" },
-  { value: "refund_requested", label: "Dispute Raised" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "created", label: "Pending" },
   { value: "cancelled", label: "Cancelled" },
   { value: "refunded", label: "Refunded" },
+  { value: "reassigned", label: "Reassigned" },
 ];
 
 function formatDate(value) {
@@ -40,16 +40,18 @@ function formatDate(value) {
 }
 
 function formatStatus(status) {
-  if (!status) return "Ticket Verification";
-  if (status.toLowerCase() === "confirmed") return "Ticket Verification";
-  if (status.toLowerCase() === "reassigned") return "Completed";
-  if (status.toLowerCase() === "refunded") return "Refunded";
-  if (status.toLowerCase() === "cancelled") return "Cancelled";
+  if (!status) return "Pending";
+  const s = status.toLowerCase();
+  if (s === "confirmed") return "Confirmed";
+  if (s === "created") return "Pending";
+  if (s === "cancelled") return "Cancelled";
+  if (s === "refunded") return "Refunded";
+  if (s === "reassigned") return "Reassigned";
   return status;
 }
 
 export default function MyTicketsPage() {
-  const { currentUserId, logout } = useAuth();
+  const { currentUserId, logout, user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -80,15 +82,14 @@ export default function MyTicketsPage() {
     return orders.filter((order) => {
       const matchesSearch =
         term === "" ||
-        order.orderId.toLowerCase().includes(term) ||
+        String(order.orderId).toLowerCase().includes(term) ||
         (order.eventName || "").toLowerCase().includes(term) ||
         (order.venueName || "").toLowerCase().includes(term);
 
-      const normalizedStatus = (order.status || "confirmed").toLowerCase();
+      const normalizedStatus = (order.status || "").toLowerCase();
       const matchesFilter =
         selectedFilter === "all" ||
-        normalizedStatus === selectedFilter ||
-        (selectedFilter === "confirmed" && normalizedStatus === "confirmed");
+        normalizedStatus === selectedFilter;
 
       return matchesSearch && matchesFilter;
     });
@@ -183,7 +184,7 @@ export default function MyTicketsPage() {
             <div className="mt-8 space-y-4">
               {filteredOrders.map((order) => {
                 const expanded = expandedOrderId === order.orderId;
-                const dateTime = formatDate(order.createdAt);
+                const dateTime = formatDate(order.date ?? order.createdAt);
 
                 return (
                   <article key={order.orderId} className="rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -255,7 +256,7 @@ export default function MyTicketsPage() {
                             </p>
                             <p>
                               <span className="font-semibold text-gray-900">Event slot:</span>{" "}
-                              {order.date || "Date TBC"}{order.time ? `, ${order.time}` : ""}
+                              {order.date ? formatDate(order.date).date : "Date TBC"}{order.time ? `, ${order.time}` : ""}
                             </p>
                             <p>
                               <span className="font-semibold text-gray-900">Delivery:</span>{" "}
@@ -263,7 +264,7 @@ export default function MyTicketsPage() {
                             </p>
                             <p>
                               <span className="font-semibold text-gray-900">Email:</span>{" "}
-                              {order.email || "Not available"}
+                              {user?.email || "Not available"}
                             </p>
                             {order.refundAmount ? (
                               <p>
