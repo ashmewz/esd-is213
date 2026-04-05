@@ -106,22 +106,45 @@ def _handle_seat_map_changed(data: dict):
 
         print(f"[seat-allocation] Affected sold seats: {len(affected)}")
 
-        # Track which available seats have already been claimed this run
-        already_assigned_in_db = {
-            str(r.seat_id)
-            for r in db.query(SeatAssignment.seat_id)
-            .filter(SeatAssignment.event_id == event_id, SeatAssignment.status == "SOLD")
-            .all()
-        }
         claimed_this_run: set = set()
+
+        # Fetch truly available seats live from events-service (authoritative source)
+        try:
+            all_seats_resp = requests.get(
+                f"{EVENTS_SERVICE_URL}/events/{event_id_str}/seats", timeout=10
+            )
+            all_seats = all_seats_resp.json() if all_seats_resp.status_code == 200 else []
+        except Exception as e:
+            print(f"[seat-allocation] Failed to fetch seats for event {event_id_str}: {e}")
+            all_seats = []
+
+        # Build available seats indexed by (tier, sectionNo) and by tier alone
+        available_by_tier_section: dict = {}  # key: (tier, sectionNo)
+        available_by_tier: dict = {}           # key: tier (fallback)
+        for s in all_seats:
+            if s.get("status") == "available":
+                tier = s.get("tier")
+                section_no = s.get("sectionNo")
+                key = (tier, section_no)
+                available_by_tier_section.setdefault(key, []).append(s.get("seatId"))
+                available_by_tier.setdefault(tier, []).append(s.get("seatId"))
 
         for assignment in affected:
             old_seat_id = str(assignment.seat_id)
+            order_id = assignment.order_id
+            user_id = assignment.user_id
 
-            # Pick first available seat not already taken
+            # Fetch the removed seat's tier and section
+            old_seat_details = _get_seat_details(event_id_str, old_seat_id)
+            old_tier = old_seat_details.get("tier")
+            old_section = old_seat_details.get("sectionNo")
+
+            # Prefer same section first, then fall back to any seat of same tier
             new_seat_id = None
-            for candidate in available_seat_ids:
-                if candidate not in already_assigned_in_db and candidate not in claimed_this_run:
+            same_section_candidates = available_by_tier_section.get((old_tier, old_section), [])
+            any_tier_candidates = available_by_tier.get(old_tier, [])
+            for candidate in (same_section_candidates + any_tier_candidates):
+                if candidate not in claimed_this_run:
                     new_seat_id = candidate
                     claimed_this_run.add(candidate)
                     break
@@ -133,7 +156,7 @@ def _handle_seat_map_changed(data: dict):
                     assignment.seat_id = new_seat_uuid
 
                     log = ReallocationLog(
-                        order_id=assignment.order_id,
+                        order_id=order_id,
                         old_seat_id=uuid.UUID(old_seat_id),
                         new_seat_id=new_seat_uuid,
                         reason="seatmap_change",
@@ -151,12 +174,12 @@ def _handle_seat_map_changed(data: dict):
                     except Exception as e:
                         print(f"[seat-allocation] Failed to mark new seat as sold: {e}")
 
-                    email = _get_user_email(assignment.user_id)
+                    email = _get_user_email(user_id)
                     old_seat = _get_seat_details(event_id_str, old_seat_id)
                     new_seat = _get_seat_details(event_id_str, new_seat_id)
                     event_details = _get_event_details(event_id_str)
                     publish_event("seat.reassigned", {
-                        "orderId": str(assignment.order_id),
+                        "orderId": str(order_id),
                         "eventId": event_id_str,
                         "oldSeatId": old_seat_id,
                         "newSeatId": new_seat_id,
@@ -164,21 +187,21 @@ def _handle_seat_map_changed(data: dict):
                         "newSeatLabel": _format_seat_label(new_seat),
                         "eventName": event_details.get("name"),
                         "venue": event_details.get("venueName"),
-                        "eventDate": event_details.get("date"),
+                        "eventDate": event_details.get("eventDate") or event_details.get("date"),
                         "email": email,
                     })
-                    print(f"[seat-allocation] Reassigned order {assignment.order_id}: {old_seat_id} → {new_seat_id}")
+                    print(f"[seat-allocation] Reassigned order {order_id}: {old_seat_id} → {new_seat_id}")
                 except Exception as e:
                     db.rollback()
-                    print(f"[seat-allocation] Failed to reassign order {assignment.order_id}: {e}")
+                    print(f"[seat-allocation] Failed to reassign order {order_id}: {e}")
             else:
                 # Step 5b: no available seat — request refund
                 publish_event("refund.required", {
-                    "orderId": str(assignment.order_id),
+                    "orderId": str(order_id),
                     "eventId": event_id_str,
                     "seatId": old_seat_id,
                 })
-                print(f"[seat-allocation] Refund required for order {assignment.order_id}, seat {old_seat_id}")
+                print(f"[seat-allocation] Refund required for order {order_id}, seat {old_seat_id}")
 
     finally:
         db.close()
