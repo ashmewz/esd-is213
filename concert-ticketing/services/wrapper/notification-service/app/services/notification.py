@@ -1,5 +1,6 @@
 import smtplib
 import requests
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config import (
@@ -9,6 +10,18 @@ from config import (
 
 APP_NAME = "StagePass"
 FROM_DISPLAY = f"{APP_NAME} <{EMAIL_FROM}>"
+
+
+def _format_date(raw: str) -> str:
+    """Convert ISO date string to human-readable format, e.g. 'Monday, 15 June 2026'."""
+    if not raw:
+        return "N/A"
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw[:len(fmt)], fmt).strftime("%A, %d %B %Y")
+        except ValueError:
+            continue
+    return raw  # already human-readable or unrecognised
 
 
 def send_notification(event_type: str, data: dict):
@@ -40,8 +53,8 @@ def _build_plain(event_type: str, data: dict) -> str:
             f"Order ID:   {data.get('orderId')}\n"
             f"Event:      {data.get('eventName', 'N/A')}\n"
             f"Venue:      {data.get('venue', 'N/A')}\n"
-            f"Date:       {data.get('eventDate', 'N/A')}\n"
-            f"Seat ID:    {data.get('seatId')}\n\n"
+            f"Date:       {_format_date(data.get('eventDate', ''))}\n"
+            f"Seat:       {data.get('seatLabel', data.get('seatId', 'N/A'))}\n\n"
             f"Thank you for your purchase. See you at the show!\n\n"
             f"— The {APP_NAME} Team"
         )
@@ -82,8 +95,8 @@ def _build_html(event_type: str, data: dict) -> str:
             ("Order ID",  data.get("orderId", "N/A")),
             ("Event",     data.get("eventName", "N/A")),
             ("Venue",     data.get("venue", "N/A")),
-            ("Date",      data.get("eventDate", "N/A")),
-            ("Seat ID",   data.get("seatId", "N/A")),
+            ("Date",      _format_date(data.get("eventDate", ""))),
+            ("Seat",      data.get("seatLabel", data.get("seatId", "N/A"))),
         ]
         title = "Your Ticket is Confirmed!"
         subtitle = "Thank you for your purchase. We can't wait to see you at the show!"

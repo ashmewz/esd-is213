@@ -6,10 +6,10 @@ from config import RABBITMQ_URL, EXCHANGE_NAME, EXCHANGE_TYPE, NOTIFICATION_QUEU
 from app.services.notification import send_notification
 from app.services.order_client import update_order_status
 
-# Routing key → OutSystems order status
+# Routing key → OutSystems order status (must match exactly what OutSystems accepts)
 ORDER_STATUS_MAP = {
-    "seat.reassigned":        "reassigned",
-    "payment.refund.issued":  "refunded",
+    "seat.reassigned":        "CONFIRMED",   # reassigned = still confirmed, new seat
+    "payment.refund.issued":  "CANCELLED",   # refunded = order cancelled
 }
 
 MAX_RETRIES = 5
