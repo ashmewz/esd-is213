@@ -23,6 +23,7 @@ class Hold(Base):
     event_id = Column(UUID(as_uuid=True), nullable=False)
     seat_id = Column(UUID(as_uuid=True), nullable=False)
     order_id = Column(BigInteger, nullable=False)
+    user_id = Column(String(100), nullable=True)
     expiry = Column(DateTime, nullable=False)
     status = Column(String(20), default="ACTIVE")
     created_at = Column(DateTime, server_default=func.now())
@@ -33,6 +34,7 @@ class Hold(Base):
             "eventId": str(self.event_id),
             "seatId": str(self.seat_id),
             "orderId": str(self.order_id),
+            "userId": self.user_id,
             "expiry": self.expiry.isoformat() if self.expiry else None,
             "status": self.status
         }
@@ -56,6 +58,7 @@ class SeatAssignment(Base):
     event_id = Column(UUID(as_uuid=True), nullable=False)
     seat_id = Column(UUID(as_uuid=True), nullable=False)
     order_id = Column(BigInteger, nullable=False)
+    user_id = Column(String(100), nullable=True)
     hold_id = Column(UUID(as_uuid=True), ForeignKey("seat_allocation_service.holds.hold_id"), nullable=False)
     transaction_id = Column(String(100), nullable=True)
     status = Column(String(20), nullable=False)
@@ -68,6 +71,7 @@ class SeatAssignment(Base):
             "eventId": str(self.event_id),
             "seatId": str(self.seat_id),
             "orderId": str(self.order_id),
+            "userId": self.user_id,
             "holdId": str(self.hold_id) if self.hold_id else None,
             "transactionId": self.transaction_id,
             "status": self.status

@@ -356,8 +356,47 @@ export async function createBooking(payload) {
 
 // ── Orders ───────────────────────────────────────────────────────────────────
 export async function getMyOrders(userId) {
-  const res = await api.get(`/orders/${userId}`);
-  return res.data;
+  const res = await api.get(`/orders/`, { params: { userId } });
+  const orders = Array.isArray(res.data) ? res.data : [];
+
+  // Enrich each order with event + seat details from our events service
+  const enriched = await Promise.all(
+    orders.map(async (order) => {
+      let eventName = null;
+      let venueName = null;
+      let eventDate = null;
+      let eventTiming = null;
+
+      try {
+        const eventRes = await api.get(`/events/${order.eventId}`);
+        const event = eventRes.data;
+        eventName = event.name ?? null;
+        venueName = event.venueName ?? null;
+        eventDate = event.eventDate ?? event.date ?? null;
+        eventTiming = event.eventTiming ?? null;
+      } catch {
+        // leave as null if event fetch fails
+      }
+
+      const items = await Promise.all(
+        (order.orderItems ?? []).map(async (item) => {
+          let seatLabel = null;
+          try {
+            const seatRes = await api.get(`/events/${order.eventId}/seats/${item.seatId}`);
+            const seat = seatRes.data;
+            seatLabel = `${seat.tier} · Section ${seat.sectionNo} · Row ${seat.rowNo} · Seat ${seat.seatNo}`;
+          } catch {
+            // seat may already be sold/held, use seatId as fallback
+          }
+          return { ...item, seatLabel };
+        })
+      );
+
+      return { ...order, eventName, venueName, date: eventDate, time: eventTiming, items };
+    })
+  );
+
+  return enriched;
 }
 
 // ── Swap ─────────────────────────────────────────────────────────────────────

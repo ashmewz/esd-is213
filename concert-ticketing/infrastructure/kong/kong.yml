@@ -80,6 +80,15 @@ services:
     - /payments
     methods: ["GET","POST","OPTIONS"]
 
+- name: order-service
+  url: https://personal-v9ndj4pt.outsystemscloud.com/Order/rest/Order
+  routes:
+  - name: orders
+    paths:
+    - /orders
+    methods: ["GET","POST","PUT","OPTIONS"]
+    strip_path: false
+
 plugins:
 - name: file-log
   config:

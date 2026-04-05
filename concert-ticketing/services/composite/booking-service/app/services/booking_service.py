@@ -26,7 +26,7 @@ class BookingService:
         )
         order_id = order_resp["orderId"]
 
-        hold_resp = self.seat_client.create_hold(order_id, event_id, seat_id)
+        hold_resp = self.seat_client.create_hold(order_id, event_id, seat_id, user_id=user_id)
         hold = hold_resp.get("data", hold_resp)
         hold_id = hold["holdId"]
 

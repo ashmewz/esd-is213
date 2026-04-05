@@ -15,4 +15,8 @@ def create_app():
 
     app.register_blueprint(hold_bp)
 
+    # Scenario B choreography: listen for seatmap changes
+    from app.messaging.consumer import start_consumer_thread
+    start_consumer_thread()
+
     return app

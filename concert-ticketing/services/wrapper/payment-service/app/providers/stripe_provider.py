@@ -57,3 +57,15 @@ class StripeProvider(PaymentProvider):
 
         except stripe.error.StripeError as e:
             return ChargeResult(success=False, failure_reason=str(e))
+
+    def refund(self, external_ref_id: str, amount: float, currency: str) -> ChargeResult:
+        try:
+            amount_in_cents = int(round(amount * 100))
+            refund = stripe.Refund.create(
+                payment_intent=external_ref_id,
+                amount=amount_in_cents,
+            )
+            return ChargeResult(success=True, provider_txn_id=refund.id)
+
+        except stripe.error.StripeError as e:
+            return ChargeResult(success=False, failure_reason=str(e))

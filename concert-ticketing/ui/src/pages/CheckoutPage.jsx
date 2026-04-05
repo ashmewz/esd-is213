@@ -466,10 +466,6 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                    Test booking errors with card numbers ending in `0002` for payment failure, `0003` for seat unavailable,
-                    `0004` for hold expired, or `0005` for refund required.
-                  </div>
                   {submitError && (
                     <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {submitError}

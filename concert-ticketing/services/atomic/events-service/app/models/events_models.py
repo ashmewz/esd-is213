@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, Numeric, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, DateTime, Integer, Numeric, String, func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -32,6 +32,7 @@ class Event(Base):
             "venueName": self.venue_name,
             "name": self.name,
             "eventDate": self.event_date.isoformat() if self.event_date else None,
+            "eventTiming": self.event_timing or None,
             "date": self.event_date_display,
             "status": self.status.lower() if self.status else None,
             "seatmap": self.seatmap,
