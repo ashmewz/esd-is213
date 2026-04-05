@@ -49,8 +49,12 @@ def _build_plain(event_type: str, data: dict) -> str:
         return (
             f"Your seat has been reassigned due to a venue update.\n\n"
             f"Order ID:   {data.get('orderId')}\n"
-            f"Old Seat:   {data.get('oldSeatId', 'N/A')}\n"
-            f"New Seat:   {data.get('newSeatId')}\n\n"
+            f"Event:      {data.get('eventName', 'N/A')}\n"
+            f"Venue:      {data.get('venue', 'N/A')}\n"
+            f"Date:       {data.get('eventDate', 'N/A')}\n"
+            f"Old Seat:   {data.get('oldSeatLabel', data.get('oldSeatId', 'N/A'))}\n"
+            f"New Seat:   {data.get('newSeatLabel', data.get('newSeatId', 'N/A'))}\n\n"
+            f"Please use your new seat details when entering the venue.\n\n"
             f"— The {APP_NAME} Team"
         )
     elif event_type == "payment.refund.issued":
@@ -89,11 +93,14 @@ def _build_html(event_type: str, data: dict) -> str:
     elif event_type == "seat.reassigned":
         rows = [
             ("Order ID",  data.get("orderId", "N/A")),
-            ("Old Seat",  data.get("oldSeatId", "N/A")),
-            ("New Seat",  data.get("newSeatId", "N/A")),
+            ("Event",     data.get("eventName", "N/A")),
+            ("Venue",     data.get("venue", "N/A")),
+            ("Date",      data.get("eventDate", "N/A")),
+            ("Old Seat",  data.get("oldSeatLabel", data.get("oldSeatId", "N/A"))),
+            ("New Seat",  data.get("newSeatLabel", data.get("newSeatId", "N/A"))),
         ]
         title = "Your Seat Has Been Reassigned"
-        subtitle = "Your seat has been updated due to a venue change."
+        subtitle = "Your seat has been updated due to a venue change. Please use your new seat details when entering the venue."
         icon = "📍"
         color = "#D97706"
 
