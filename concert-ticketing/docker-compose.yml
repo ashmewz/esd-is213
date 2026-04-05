@@ -170,6 +170,7 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - EMAIL_FROM=${EMAIL_FROM}
+      - ORDER_SERVICE_URL=https://personal-v9ndj4pt.outsystemscloud.com/Order/rest/Order
       - ENV=production
       - PYTHONUNBUFFERED=1
     ports:

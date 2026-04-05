@@ -4,6 +4,13 @@ import threading
 import pika
 from config import RABBITMQ_URL, EXCHANGE_NAME, EXCHANGE_TYPE, NOTIFICATION_QUEUE, ROUTING_KEYS
 from app.services.notification import send_notification
+from app.services.order_client import update_order_status
+
+# Routing key → OutSystems order status
+ORDER_STATUS_MAP = {
+    "seat.reassigned":        "reassigned",
+    "payment.refund.issued":  "refunded",
+}
 
 MAX_RETRIES = 5
 RETRY_BACKOFF_BASE = 2  # seconds — doubles each attempt: 2, 4, 8, 16, 32
@@ -15,6 +22,12 @@ def on_message(ch, method, properties, body):
         data = json.loads(body)
         print(f"[x] Received message on '{routing_key}': {data}")
         send_notification(routing_key, data)
+
+        # Step 13: update OutSystems order status if applicable
+        new_status = ORDER_STATUS_MAP.get(routing_key)
+        if new_status and data.get("orderId"):
+            update_order_status(str(data["orderId"]), new_status)
+
         ch.basic_ack(delivery_tag=method.delivery_tag)
         print(f"[✓] Successfully processed '{routing_key}'")
     except json.JSONDecodeError as e:
