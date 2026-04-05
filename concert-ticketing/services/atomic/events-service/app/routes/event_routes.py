@@ -61,6 +61,42 @@ def list_seats_for_event(event_id):
         db.close()
 
 
+@event_bp.route("/events/<event_id>/seats/restore", methods=["PUT"])
+def restore_seats(event_id):
+    """Admin restores previously removed seats back to available."""
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter_by(event_id=event_id).first()
+        if event is None:
+            return jsonify({"error": "Event not found"}), 404
+
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Request body is required"}), 400
+
+        seat_ids = data.get("seatIds", [])
+        if not isinstance(seat_ids, list) or len(seat_ids) == 0:
+            return jsonify({"error": "seatIds must be a non-empty array"}), 400
+
+        restored = []
+        for seat_id in seat_ids:
+            seat = db.query(Seat).filter_by(seat_id=seat_id, event_id=event_id).first()
+            if seat and seat.status == "removed":
+                seat.status = "available"
+                restored.append(str(seat.seat_id))
+
+        db.commit()
+        return jsonify({
+            "message": "Seats restored.",
+            "restoredSeats": restored,
+        }), 200
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 @event_bp.route("/events/<event_id>/seats/<seat_id>")
 def get_seat(event_id, seat_id):
     db = SessionLocal()
