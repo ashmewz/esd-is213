@@ -5,6 +5,7 @@ import threading
 import uuid
 
 import pika
+import requests
 
 from app.core.database import SessionLocal
 from app.models.payment_models import Transaction
@@ -17,6 +18,20 @@ MAX_RETRIES = 5
 RETRY_BACKOFF_BASE = 2
 
 _provider = StripeProvider() if os.getenv("STRIPE_SECRET_KEY") else MockPaymentProvider()
+
+USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://user-service:5000")
+
+
+def _get_user_email(user_id: str) -> str | None:
+    if not user_id:
+        return None
+    try:
+        resp = requests.get(f"{USER_SERVICE_URL}/users/{user_id}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json().get("email")
+    except Exception as e:
+        print(f"[payment] Failed to fetch email for userId={user_id}: {e}")
+    return None
 
 
 def _handle_refund_required(data: dict):
@@ -71,12 +86,14 @@ def _handle_refund_required(data: dict):
 
         if result.success:
             # Step 10: publish payment.refund.issued
+            email = _get_user_email(original.user_id)
             publish_event("payment.refund.issued", {
                 "orderId": order_id,
                 "userId": original.user_id,
                 "transactionId": str(refund_txn.transaction_id),
                 "amount": amount,
                 "currency": currency,
+                "email": email,
             })
             print(f"[payment] Refund issued for orderId={order_id}, amount={amount} {currency}")
         else:
