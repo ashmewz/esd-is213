@@ -172,11 +172,11 @@ export default function SwapPage() {
   // Accept or Decline an incoming offer on one of the user's own listings
   // swapId       = swap match ID → used in URL: POST /swap-matches/<swapId>/response
   // matchedReqId = requestId of the party who sent the offer → sent in the body
-  async function handleRespond(requestId, response) {
+  async function handleRespond(swapId, matchRequestId, response) {
     setActingRequestId(requestId);
     setError("");
     try {
-      await respondToSwapRequest(requestId, currentUserId, response, requestId);
+      await respondToSwapRequest(swapId, currentUserId, response, matchRequestId);
       await loadRequests();
     } catch (err) {
       setError(err.message || "Could not submit response.");
@@ -568,8 +568,8 @@ export default function SwapPage() {
                     // swapId: swap match ID for the URL path
                     // matchedReqId: requestId of the user who sent the offer
                     console.log("REQ OBJECT:", req);
-                    const swapId = req.requestId;
-                    const matchedReqId = req.requestId;
+                    const swapId = req.swapId;
+                    const matchedReqId = req.matchedRequestId;
                     return (
                       <article
                         key={req.requestId}
@@ -608,8 +608,8 @@ export default function SwapPage() {
 
                         <div className="mt-5 flex flex-wrap gap-3">
                           <button
-                            onClick={() => handleRespond(req.requestId, "ACCEPT")}
-                            disabled={actingRequestId === req.requestId}
+                            onClick={() => handleRespond(req.swapId, req.matchedRequestId, "ACCEPT")}
+                            disabled={actingRequestId === req.swapId}
                             className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
                           >
                             <CheckCircle2 size={15} />

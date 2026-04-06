@@ -78,27 +78,6 @@ def _find_match(db, request):
     return None
 
 
-def _evaluate_swap(db, swap_id):
-    """Evaluate swap status based on collected confirmations."""
-    confirmations = (
-        db.query(SwapConfirmation)
-        .filter(SwapConfirmation.swap_id == swap_id)
-        .all()
-    )
-
-    if len(confirmations) < 2:
-        return {"status": "PENDING"}
-
-    statuses = [c.status for c in confirmations]
-
-    if all(s == "ACCEPT" for s in statuses):
-        return {"status": "READY_FOR_EXECUTION"}
-
-    if any(s == "DECLINE" for s in statuses):
-        return {"status": "FAILED"}
-
-    return {"status": "PENDING"}
-
 def submit_swap_response(swap_id, user_id, response):
     db = SessionLocal()
     try:
@@ -107,10 +86,7 @@ def submit_swap_response(swap_id, user_id, response):
         swap_id = uuid.UUID(str(swap_id))
         user_id = uuid.UUID(str(user_id))
 
-        swap = db.query(SwapMatch).filter(
-            SwapMatch.swap_id == swap_id
-        ).first()   
-
+        swap = db.query(SwapMatch).get(swap_id)
         if not swap:
             raise ValueError("Swap not found")
 
@@ -143,13 +119,33 @@ def submit_swap_response(swap_id, user_id, response):
 
             db.commit()
 
-        if swap.status == "MATCHED":
-            return _evaluate_swap(db, swap_id)
-        
         return result
 
     finally:
         db.close()
+
+
+def _evaluate_swap(db, swap_id):
+    """Evaluate swap status based on collected confirmations."""
+    confirmations = (
+        db.query(SwapConfirmation)
+        .filter(SwapConfirmation.swap_id == swap_id)
+        .all()
+    )
+
+    if len(confirmations) < 2:
+        return {"status": "PENDING"}
+
+    statuses = [c.status for c in confirmations]
+
+    if all(s == "ACCEPT" for s in statuses):
+        return {"status": "READY_FOR_EXECUTION"}
+
+    if any(s == "DECLINE" for s in statuses):
+        return {"status": "FAILED"}
+
+    return {"status": "PENDING"}
+
 
 def get_swap_request(request_id):
     """Get a single swap request by ID."""
@@ -267,3 +263,31 @@ def _cancel_related_requests(db, request_ids):
         r.status = "CANCELLED"
 
     db.commit()
+
+def get_swap_by_request(request_id):
+    """Return the swap match that a given requestId belongs to (if any)."""
+    db = SessionLocal()
+    try:
+        import uuid
+
+        try:
+            request_uuid = uuid.UUID(str(request_id))
+        except ValueError:
+            return None
+
+        swap = (
+            db.query(SwapMatch)
+            .filter(
+                (SwapMatch.request_a == request_uuid) |
+                (SwapMatch.request_b == request_uuid)
+            )
+            .first()
+        )
+
+        if not swap:
+            return None
+
+        return swap.to_dict()
+
+    finally:
+        db.close()

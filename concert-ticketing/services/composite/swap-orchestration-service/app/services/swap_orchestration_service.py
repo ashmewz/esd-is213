@@ -1,5 +1,6 @@
 from app.clients.swap_client import (
     create_swap_request,
+    get_swap_status_by_request,
     submit_swap_response,
     get_swap_status,
     list_swap_requests_by_user,
@@ -193,7 +194,7 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                 "emailA": user_a.get("email"),
                 "emailB": user_b.get("email"),
             })
-    
+ 
     return result
 
 
@@ -221,10 +222,27 @@ def get_my_swap_requests(user_id):
     for req in raw:
         eid = req.get("eventId")
         sid = req.get("currentSeatId")
+
         ev = _event(eid) if eid else {}
         s  = _seat(eid, sid) if (eid and sid) else None
+
         matched_seat_id = req.get("matchedSeatId")
         matched_seat = _seat(eid, matched_seat_id) if (eid and matched_seat_id) else None
+
+        swap_id = None
+        matched_request_id = None
+
+        if req.get("status") in ["MATCHED", "COMPLETED"]:
+            swap_data = get_swap_status_by_request(req["requestId"])
+
+            if swap_data:
+                swap_id = swap_data.get("swapId")
+
+                if swap_data.get("requestA") == req["requestId"]:
+                    matched_request_id = swap_data.get("requestB")
+                else:
+                    matched_request_id = swap_data.get("requestA")
+
         result.append({
             **req,
             "eventName": ev.get("name"),
@@ -232,8 +250,12 @@ def get_my_swap_requests(user_id):
             "currentSeatLabel": seat_label(s) if s else None,
             "matchedSeatLabel": seat_label(matched_seat) if matched_seat else None,
             "swapStatus": _STATUS_MAP.get(req.get("status", ""), "pending"),
+
+            # ✅ NEW FIELDS
+            "swapId": swap_id,
+            "matchedRequestId": matched_request_id,
         })
-    return result
+        return result
 
 
 def cancel_swap(request_id):

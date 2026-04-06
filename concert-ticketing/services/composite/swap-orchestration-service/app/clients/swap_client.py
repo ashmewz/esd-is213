@@ -81,3 +81,17 @@ def get_available_swap_requests(event_id, tier, exclude_user_id=None):
     except Exception as e:
         print(f"[swap-orchestration] get_available_swap_requests failed: {e}")
         return []
+
+def get_swap_status_by_request(request_id):
+    try:
+        url = f"{SWAP_SERVICE_URL}/swap/by-request/{request_id}"
+        resp = requests.get(url, timeout=5)
+
+        if resp.status_code == 200:
+            return resp.json().get("data")
+
+        return None
+
+    except Exception as e:
+        print(f"[swap-orchestration] get_swap_status_by_request failed: {e}")
+        return None

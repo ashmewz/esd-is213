@@ -29,6 +29,11 @@ services:
     - /swap
     methods: ["GET","OPTIONS"]
     strip_path: false
+  - name: swap-status-by-request
+    paths:
+    - /swap/by-request
+    methods: ["GET","OPTIONS"]
+    strip_path: false
 
 - name: user-service-login
   url: http://user-service:5000

@@ -89,3 +89,11 @@ def get_swap_status_route(swap_id):
     if not result:
         return jsonify({"error": "Swap not found"}), 404
     return jsonify({"data": result}), 200
+
+@swap_bp.route("/swap/by-request/<request_id>", methods=["GET"])
+def get_swap_by_request_route(request_id):
+    from app.services.swap_service import get_swap_by_request
+
+    swap = get_swap_by_request(request_id)
+
+    return jsonify({"data": swap}), 200
