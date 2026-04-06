@@ -202,4 +202,6 @@ concert-ticketing/
 
 ## Team
 
-IS213 G1 — SMU School of Computing and Information Systems
+IS213 G1 Team 3 — SMU School of Computing and Information Systems
+
+Ash · Kai Kin · Kai Wen · Norven · Yujia · Zhuo Yu
