@@ -121,10 +121,25 @@ RabbitMQ (exchange: concert_ticketing)
 
 ## Scenarios
 
-### Scenario A — Ticket Purchase
-1. Register/login at http://localhost:5173
-2. Browse events → select a seat → checkout with card number `4242 4242 4242 4242`, any future expiry, any CVC
-3. Order confirmation email is sent; ticket appears under **My Tickets**
+### Scenario A — Ticket Purchase (Orchestration)
+
+The Place Booking Service acts as the central coordinator managing all interactions between microservices.
+
+1. The customer browses events and selects a seat on the Customer UI.
+2. The Customer UI sends a booking request via Kong using `HTTP POST /place-booking`.
+3. The Place Booking Service calls the Events Service via HTTP to validate the selected event and retrieve seat pricing details.
+4. The Place Booking Service creates a new order by calling the OutSystems Order Service via `HTTP POST /orders`.
+5. To prevent double booking, the Place Booking Service places a temporary hold on the selected seat by calling the Seat Allocation Service via `HTTP POST /holds`.
+6. The Place Booking Service requests payment processing via `HTTP POST /payments` to the Payment Service.
+7. The Payment Service integrates with the Stripe API to process the transaction and stores the record in the Payment database.
+8. While payment is processing, Place Booking updates the seat status in the Events Service to reflect the seat is no longer available.
+9. Once payment is successful, Place Booking confirms the seat assignment via `HTTP POST /holds/{holdId}/confirm` to the Seat Allocation Service.
+10. Place Booking updates the order status to `CONFIRMED` via `HTTP PUT /orders/{orderId}/status` on the Order Service.
+11. Place Booking publishes a `ticket.purchased` event to RabbitMQ.
+12. The Notification Service consumes this event and sends the digital ticket confirmation to the customer via email.
+13. Place Booking returns a success response to the Customer UI via Kong, completing the transaction.
+
+> **Test card:** `4242 4242 4242 4242`, any future expiry, any CVC
 
 ### Scenario B — Seatmap Change (Choreography)
 1. Login as admin (role: `admin`)
