@@ -11,6 +11,7 @@ from app.clients.swap_client import (
 from app.clients.user_client import get_user
 from app.clients.events_client import get_event, get_seat, seat_label, update_seat_status
 from app.clients.seat_allocation_client import execute_swap as _execute_swap
+from app.clients.order_client import update_order_seat
 from app.clients.payment_client import (
     get_payment_by_order,
     charge_swap_settlement,
