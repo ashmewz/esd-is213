@@ -21,11 +21,16 @@ api.interceptors.request.use((config) => {
 // ── Mock only (no backend route yet) ─────────────────────────────────────────
 export {
   USER_ID,
-  getMyNotifications,
   adminCreateEvent,
   adminUpdateEvent,
   adminDeleteEvent,
 } from "./mock/mockApi";
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export async function getMyNotifications(userId) {
+  const res = await api.get(`/notifications?userId=${userId}`);
+  return Array.isArray(res.data) ? res.data : [];
+}
 
 // ── Admin events (real backend) ──────────────────────────────────────────────
 export async function adminGetEvents() {

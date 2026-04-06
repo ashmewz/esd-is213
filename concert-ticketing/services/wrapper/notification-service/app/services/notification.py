@@ -7,9 +7,30 @@ from config import (
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
 )
+from app.database import SessionLocal
+from app.models import Notification
 
 APP_NAME = "StagePass"
 FROM_DISPLAY = f"{APP_NAME} <{EMAIL_FROM}>"
+
+
+def _save(user_id: str, notif_type: str, title: str, message: str, route: str = "/"):
+    """Persist a notification record to the DB. Non-fatal on failure."""
+    if not user_id:
+        return
+    try:
+        db = SessionLocal()
+        db.add(Notification(
+            user_id=str(user_id),
+            type=notif_type,
+            title=title,
+            message=message,
+            route=route,
+        ))
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"[!] Could not save notification for user {user_id}: {e}")
 
 
 def _format_date(raw: str) -> str:
@@ -40,11 +61,44 @@ def send_notification(event_type: str, data: dict):
     html = _build_html(event_type, data)
     plain = _build_plain(event_type, data)
     recipient_email = data.get("email")
+    user_id = data.get("userId")
+
+    # Persist to DB
+    _persist_single(event_type, data, user_id)
 
     if recipient_email:
         _send_email(recipient_email, subject, plain, html)
     else:
         print(f"[!] No email address in payload for event '{event_type}'. Skipping email.")
+
+
+def _persist_single(event_type: str, data: dict, user_id: str):
+    """Save a notification record for single-user events."""
+    TYPE_MAP = {
+        "ticket.purchased": (
+            "PURCHASE_CONFIRMED",
+            "Purchase confirmed",
+            lambda d: f"Your booking for {d.get('eventName', 'your event')} is confirmed.",
+            "/tickets",
+        ),
+        "seat.reassigned": (
+            "SEAT_REASSIGNED",
+            "Seat reassigned",
+            lambda d: f"Your seat for {d.get('eventName', 'your event')} has been reassigned.",
+            "/tickets",
+        ),
+        "payment.refund.issued": (
+            "REFUND_ISSUED",
+            "Refund issued",
+            lambda d: f"A refund of SGD {d.get('amount', '')} has been issued for order {d.get('orderId', '')}.",
+            "/tickets",
+        ),
+    }
+    entry = TYPE_MAP.get(event_type)
+    if not entry:
+        return
+    notif_type, title, msg_fn, route = entry
+    _save(user_id, notif_type, title, msg_fn(data), route)
 
 
 def _send_swap_matched(data: dict):
@@ -56,8 +110,11 @@ def _send_swap_matched(data: dict):
     for key in ("requestADetails", "requestBDetails"):
         party = data.get(key, {})
         email = party.get("email")
+        user_id = party.get("userId")
         if not email:
             continue
+        _save(user_id, "SWAP_MATCHED", "Swap match found",
+              "A swap offer is ready. Log in to review and accept or decline.", "/swap")
 
         # Determine if this party is upgrading or downgrading
         if price_diff and price_diff > 0:
@@ -117,8 +174,11 @@ def _send_swap_completed(data: dict):
     for key in ("userA", "userB"):
         party = data.get(key, {})
         email = party.get("email")
+        user_id = party.get("userId")
         if not email:
             continue
+        _save(user_id, "SWAP_COMPLETED", "Swap completed",
+              f"Your seat swap is complete. Your new seat tier is {party.get('tier', 'N/A')}.", "/swap")
         old_seat = party.get("oldSeatId", "N/A")
         new_seat = party.get("newSeatId", "N/A")
         tier = party.get("tier", "N/A")
@@ -187,10 +247,15 @@ def _send_swap_completed(data: dict):
 
 def _send_swap_failed(data: dict):
     subject = f"Seat Swap Declined | {APP_NAME}"
-    for email_key in ("emailA", "emailB"):
-        email = data.get(email_key)
+    pairs = [
+        (data.get("emailA"), data.get("userIdA")),
+        (data.get("emailB"), data.get("userIdB")),
+    ]
+    for email, user_id in pairs:
         if not email:
             continue
+        _save(user_id, "SWAP_FAILED", "Swap failed",
+              "Your seat swap was declined by the other party. You can submit a new request anytime.", "/swap")
         plain = (
             f"Unfortunately, your seat swap has been declined by the other party.\n\n"
             f"You can submit a new swap request any time.\n\n"

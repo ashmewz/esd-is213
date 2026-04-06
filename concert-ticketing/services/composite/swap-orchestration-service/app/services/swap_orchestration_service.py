@@ -161,6 +161,7 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                 "swapId": swap_id,
                 "matchedRequestId": matched_request_id,
                 "userA": {
+                    "userId": lister_req.get("userId"),
                     "email": user_a.get("email"),
                     "oldSeatId": seat_a,
                     "newSeatId": seat_b,
@@ -172,6 +173,7 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                     } if price_b > price_a and payment_info else {}),
                 },
                 "userB": {
+                    "userId": offerer_req.get("userId"),
                     "email": user_b.get("email"),
                     "oldSeatId": seat_b,
                     "newSeatId": seat_a,
@@ -195,6 +197,8 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
             publish_event(EXCHANGE, "swap.failed", {
                 "swapId": swap_id,
                 "matchedRequestId": matched_request_id,
+                "userIdA": req_a.get("userId"),
+                "userIdB": req_b.get("userId"),
                 "emailA": user_a.get("email"),
                 "emailB": user_b.get("email"),
             })

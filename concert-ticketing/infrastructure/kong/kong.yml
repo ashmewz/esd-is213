@@ -85,6 +85,15 @@ services:
     - /payments
     methods: ["GET","POST","OPTIONS"]
 
+- name: notification-service
+  url: http://notification-service:5000
+  routes:
+  - name: notifications
+    paths:
+    - /notifications
+    methods: ["GET","OPTIONS"]
+    strip_path: false
+
 - name: order-service
   url: https://personal-v9ndj4pt.outsystemscloud.com/Order/rest/Order
   routes:
