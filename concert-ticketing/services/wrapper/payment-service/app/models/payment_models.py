@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Numeric, Text, CheckConstraint, func
+from sqlalchemy import BigInteger, Column, DateTime, Numeric, Text, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 import uuid
@@ -19,7 +19,7 @@ class Transaction(Base):
     )
 
     transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(Text, nullable=False)
+    order_id = Column(BigInteger, nullable=False)
     user_id = Column(Text, nullable=True)
     type = Column(Text)                             # PAYMENT, REFUND, ADJUSTMENT, SWAP_SETTLEMENT
     amount = Column(Numeric(10, 2), nullable=False)
