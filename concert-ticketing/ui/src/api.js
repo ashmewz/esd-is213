@@ -206,14 +206,22 @@ export async function getMyOrders(userId) {
       const items = await Promise.all(
         (order.orderItems ?? []).map(async (item) => {
           let seatLabel = null;
+          let tier = item.tier ?? null;
+          let sectionNo = item.sectionNo ?? null;
+          let rowNo = item.rowNo ?? null;
+          let seatNo = item.seatNo ?? null;
           try {
             const seatRes = await api.get(`/events/${order.eventId}/seats/${item.seatId}`);
             const seat = seatRes.data;
+            tier = seat.tier ?? tier;
+            sectionNo = seat.sectionNo ?? sectionNo;
+            rowNo = seat.rowNo ?? rowNo;
+            seatNo = seat.seatNo ?? seatNo;
             seatLabel = `${seat.tier} · Section ${seat.sectionNo} · Row ${seat.rowNo} · Seat ${seat.seatNo}`;
           } catch {
             // seat may already be sold/held, use seatId as fallback
           }
-          return { ...item, seatLabel };
+          return { ...item, seatLabel, tier, sectionNo, rowNo, seatNo };
         })
       );
 
@@ -224,6 +232,40 @@ export async function getMyOrders(userId) {
   return enriched;
 }
 
+// Lightweight version for SwapPage — no per-seat API calls, uses seat_assignments endpoint
+export async function getMyTickets(userId) {
+  const res = await api.get(`/seat-assignments?userId=${userId}`);
+  const assignments = Array.isArray(res.data) ? res.data : [];
+
+  // Group by eventId to batch event name lookups
+  const eventIds = [...new Set(assignments.map((a) => a.eventId).filter(Boolean))];
+  const eventMap = {};
+  await Promise.all(
+    eventIds.map(async (eid) => {
+      try {
+        const r = await api.get(`/events/${eid}`);
+        eventMap[eid] = r.data;
+      } catch {
+        eventMap[eid] = {};
+      }
+    })
+  );
+
+  return assignments
+    .filter((a) => a.status === "SOLD" && a.seatId && a.tier)
+    .map((a) => {
+      const ev = eventMap[a.eventId] || {};
+      return {
+        orderId: a.orderId,
+        eventId: a.eventId,
+        eventName: ev.name || a.eventId,
+        seatId: a.seatId,
+        tier: a.tier,
+        seatLabel: a.seatLabel || `Section ${a.sectionNo} · Row ${a.rowNo} · Seat ${a.seatNo}`,
+      };
+    });
+}
+
 // ── Swap ─────────────────────────────────────────────────────────────────────
 export async function getMySwapRequests(userId) {
   const res = await api.get(`/swap-requests?userId=${userId}`);
@@ -232,9 +274,11 @@ export async function getMySwapRequests(userId) {
 
 export async function createSwapRequest(payload) {
   const res = await api.post("/swap-requests", {
+    userId: payload.userId,
     orderId: payload.orderId,
     eventId: payload.eventId,
-    currentSeatId: payload.seatId,
+    currentSeatId: payload.seatId || payload.currentSeatId,
+    currentTier: payload.currentTier,
     desiredTier: payload.desiredTier,
   });
   return res.data;
@@ -250,5 +294,12 @@ export async function respondToSwapRequest(swapId, userId, response) {
     userId,
     response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
   });
+  return res.data;
+}
+
+export async function getAvailableSwaps(eventId, tier, excludeUserId) {
+  const params = new URLSearchParams({ eventId, tier });
+  if (excludeUserId) params.append("excludeUserId", excludeUserId);
+  const res = await api.get(`/swap-requests/available?${params}`);
   return res.data;
 }
