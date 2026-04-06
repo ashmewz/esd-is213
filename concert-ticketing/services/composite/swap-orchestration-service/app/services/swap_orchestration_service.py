@@ -250,12 +250,10 @@ def get_my_swap_requests(user_id):
             "currentSeatLabel": seat_label(s) if s else None,
             "matchedSeatLabel": seat_label(matched_seat) if matched_seat else None,
             "swapStatus": _STATUS_MAP.get(req.get("status", ""), "pending"),
-
-            # ✅ NEW FIELDS
             "swapId": swap_id,
             "matchedRequestId": matched_request_id,
         })
-        return result
+    return result
 
 
 def cancel_swap(request_id):
