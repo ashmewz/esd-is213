@@ -4,7 +4,7 @@ import threading
 import pika
 from config import RABBITMQ_URL, EXCHANGE_NAME, EXCHANGE_TYPE, NOTIFICATION_QUEUE, ROUTING_KEYS
 from app.services.notification import send_notification
-from app.services.order_client import update_order_status
+from app.services.order_client import update_order_status, update_order_seat
 
 # Routing key → OutSystems order status (must match exactly what OutSystems accepts)
 ORDER_STATUS_MAP = {
@@ -27,6 +27,10 @@ def on_message(ch, method, properties, body):
         new_status = ORDER_STATUS_MAP.get(routing_key)
         if new_status and data.get("orderId"):
             update_order_status(str(data["orderId"]), new_status)
+
+        # Scenario B: also update the seat on the order after reassignment
+        if routing_key == "seat.reassigned" and data.get("orderId") and data.get("newSeatId"):
+            update_order_seat(str(data["orderId"]), str(data["newSeatId"]))
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
         print(f"[✓] Successfully processed '{routing_key}'")
