@@ -11,6 +11,7 @@ from app.clients.swap_client import (
 from app.clients.user_client import get_user
 from app.clients.events_client import get_event, get_seat, seat_label, update_seat_status
 from app.clients.seat_allocation_client import execute_swap as _execute_swap
+from app.clients.order_client import update_order_seat
 from app.clients.payment_client import (
     get_payment_by_order,
     charge_swap_settlement,
@@ -143,6 +144,10 @@ def respond_to_swap(swap_id, user_id, response):
                 payment_info["totalCharged"] = round(price_diff + platform_fee, 2)
 
             _execute_swap(order_a, seat_a, order_b, seat_b)
+
+            # Update OutSystems order table with new seat IDs
+            update_order_seat(order_a, seat_b)
+            update_order_seat(order_b, seat_a)
 
             # Update events-service seat statuses
             if event_id:
