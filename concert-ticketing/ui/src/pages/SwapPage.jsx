@@ -23,19 +23,17 @@ export default function SwapPage() {
   const { currentUserId } = useAuth();
   const [activeTab, setActiveTab] = useState("mine");
 
-  // My swap requests
-  const [requests, setRequests] = useState([]);
+  const [myListings, setMyListings] = useState([]);
+  const [incomingOffers, setIncomingOffers] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [actingRequestId, setActingRequestId] = useState("");
 
-  // List My Seat form (in "mine" tab)
   const [tickets, setTickets] = useState([]);
   const [showListForm, setShowListForm] = useState(false);
   const [listTicketKey, setListTicketKey] = useState("");
   const [desiredTier, setDesiredTier] = useState("");
   const [listing, setListing] = useState(false);
 
-  // Browse tab
   const [browseTicketKey, setBrowseTicketKey] = useState("");
   const [available, setAvailable] = useState([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
@@ -43,12 +41,18 @@ export default function SwapPage() {
 
   const [error, setError] = useState("");
 
+  // GET /swap-requests?userId=X is already scoped to the current user's own records.
+  // Split into:
+  //   myListings     → all records (shown in "My Swap Requests" tab, status only)
+  //   incomingOffers → awaiting_confirmation ones (shown in "Browse" tab with Accept/Decline)
   async function loadRequests() {
     setLoadingRequests(true);
     setError("");
     try {
       const data = await getMySwapRequests(currentUserId);
-      setRequests(Array.isArray(data) ? data : []);
+      const all = Array.isArray(data) ? data : [];
+      setMyListings(all);
+      setIncomingOffers(all.filter((r) => r.swapStatus === "awaiting_confirmation"));
     } catch (err) {
       setError(err.message || "Could not load swap requests.");
     } finally {
@@ -70,7 +74,6 @@ export default function SwapPage() {
     loadTickets();
   }, [currentUserId]);
 
-  // Tickets come pre-enriched from seat-allocation-service
   const eligibleTickets = tickets.map((t) => ({
     key: `${t.orderId}-${t.seatId}`,
     orderId: t.orderId,
@@ -84,7 +87,7 @@ export default function SwapPage() {
   const listTicket = eligibleTickets.find((t) => t.key === listTicketKey) ?? null;
   const browseTicket = eligibleTickets.find((t) => t.key === browseTicketKey) ?? null;
 
-  // Load available swaps when browse ticket changes
+  // GET /swap-requests/available?eventId=X&tier=Y&excludeUserId=Z
   useEffect(() => {
     if (!browseTicket) {
       setAvailable([]);
@@ -98,7 +101,7 @@ export default function SwapPage() {
       .finally(() => setLoadingAvailable(false));
   }, [browseTicketKey]);
 
-  // ── Handler: User A lists their own seat ────────────────────────────────────
+
   async function handleListSeat() {
     if (!listTicket || !desiredTier) return;
     setListing(true);
@@ -110,7 +113,7 @@ export default function SwapPage() {
         eventId: listTicket.eventId,
         currentSeatId: listTicket.seatId,
         currentTier: listTicket.currentTier,
-        desiredTier: desiredTier,
+        desiredTier,
       });
       setShowListForm(false);
       setListTicketKey("");
@@ -123,7 +126,7 @@ export default function SwapPage() {
     }
   }
 
-  // ── Handler: User B sends offer to an existing listing ──────────────────────
+  // User B sends an offer against an existing listing from User A
   async function handleSendOffer(listing) {
     if (!browseTicket) return;
     setSubmitting(true);
@@ -161,6 +164,7 @@ export default function SwapPage() {
     }
   }
 
+  // Accept or Decline an incoming offer on one of the user's own listings
   async function handleRespond(swapId, response) {
     setActingRequestId(swapId);
     setError("");
@@ -173,6 +177,14 @@ export default function SwapPage() {
       setActingRequestId("");
     }
   }
+
+  const filteredIncomingOffers = browseTicket
+    ? incomingOffers.filter(
+        (r) =>
+          r.eventId === browseTicket.eventId &&
+          (r.currentSeatId === browseTicket.seatId || r.currentTier === browseTicket.currentTier)
+      )
+    : incomingOffers;
 
   return (
     <main className="min-h-[calc(100vh-140px)] bg-white px-6 py-10">
@@ -214,19 +226,19 @@ export default function SwapPage() {
               Step 1 — List your seat
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              Go to <strong>My Swap Request</strong> → click{" "}
+              Go to <strong>My Swap Requests</strong> → click{" "}
               <strong>List My Seat</strong>, pick your ticket and the tier you
               want, then submit. Your listing becomes visible to others.
             </p>
           </div>
           <div className="rounded-2xl border border-[#dbe5ff] bg-[#f5f8ff] p-5">
             <p className="text-xs font-bold uppercase tracking-widest text-[#1d4ed8]">
-              Step 2 — Send or receive an offer
+              Step 2 — Browse &amp; respond to offers
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              Once matched, both parties see{" "}
-              <strong>Awaiting Confirmation</strong> and can accept or decline.
-              When both accept, seats are swapped automatically.
+              Go to <strong>Browse Available Swaps</strong>, pick your ticket,
+              and send an offer — or accept/decline any incoming offers on your
+              listings there.
             </p>
           </div>
         </div>
@@ -234,7 +246,7 @@ export default function SwapPage() {
         {/* Tabs */}
         <div className="mb-6 flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
           {[
-            { id: "mine", label: "My Swap Request" },
+            { id: "mine", label: "My Swap Requests" },
             { id: "browse", label: "Browse Available Swaps" },
           ].map((tab) => (
             <button
@@ -250,20 +262,23 @@ export default function SwapPage() {
               }`}
             >
               {tab.label}
+              {tab.id === "browse" && incomingOffers.length > 0 && (
+                <span className="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  {incomingOffers.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* ── Tab: My Swap Request ── */}
         {activeTab === "mine" && (
           <section className="rounded-3xl border border-gray-200 bg-[#fcfbfb] p-8 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  My Swap Requests
-                </h2>
+                <h2 className="text-xl font-bold text-gray-900">My Swap Requests</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  List your seat, cancel pending requests, or accept/decline
+                  Listings you have created. Cancel a pending listing anytime.
+                  Head to <strong>Browse Available Swaps</strong> to respond to
                   incoming offers.
                 </p>
               </div>
@@ -288,7 +303,6 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {/* List My Seat form */}
             {showListForm && (
               <div className="mt-6 rounded-2xl border border-[#ead7dd] bg-white p-6">
                 <h3 className="mb-4 text-base font-semibold text-gray-900">
@@ -336,9 +350,9 @@ export default function SwapPage() {
 
                   {listTicket && desiredTier && (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                      You are listing{" "}
-                      <strong>{listTicket.seatLabel}</strong> ({listTicket.currentTier})
-                      {" "}in exchange for a <strong>{desiredTier}</strong> seat.
+                      You are listing <strong>{listTicket.seatLabel}</strong>{" "}
+                      ({listTicket.currentTier}) in exchange for a{" "}
+                      <strong>{desiredTier}</strong> seat.
                     </div>
                   )}
 
@@ -365,13 +379,15 @@ export default function SwapPage() {
               </div>
             )}
 
+            {/* Loading */}
             {loadingRequests && (
               <div className="mt-6 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-400">
                 Loading…
               </div>
             )}
 
-            {!loadingRequests && requests.length === 0 && (
+            {/* Empty */}
+            {!loadingRequests && myListings.length === 0 && (
               <div className="mt-6 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
                 <p className="text-sm font-semibold text-gray-800">
                   No swap requests yet.
@@ -390,12 +406,10 @@ export default function SwapPage() {
               </div>
             )}
 
-            {!loadingRequests && requests.length > 0 && (
+            {!loadingRequests && myListings.length > 0 && (
               <div className="mt-6 space-y-4">
-                {requests.map((req) => {
+                {myListings.map((req) => {
                   const canCancel = req.swapStatus === "pending";
-                  const canRespond = req.swapStatus === "awaiting_confirmation";
-                  const swapId = req.swapId || req.requestId;
                   return (
                     <article
                       key={req.requestId}
@@ -412,8 +426,7 @@ export default function SwapPage() {
                         </div>
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                            STATUS_STYLES[req.swapStatus] ??
-                            "bg-gray-200 text-gray-700"
+                            STATUS_STYLES[req.swapStatus] ?? "bg-gray-200 text-gray-700"
                           }`}
                         >
                           {(req.swapStatus || "").replace(/_/g, " ")}
@@ -422,49 +435,41 @@ export default function SwapPage() {
 
                       <div className="mt-4 grid gap-2 text-sm text-gray-600">
                         <p>
-                          <span className="font-semibold text-gray-900">
-                            Your seat tier:
-                          </span>{" "}
+                          <span className="font-semibold text-gray-900">Your seat tier:</span>{" "}
                           {req.currentTier}
                         </p>
                         <p>
-                          <span className="font-semibold text-gray-900">
-                            Desired tier:
-                          </span>{" "}
+                          <span className="font-semibold text-gray-900">Desired tier:</span>{" "}
                           {req.desiredTier}
                         </p>
                       </div>
 
                       {req.swapStatus === "pending" && (
                         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                          Your listing is live. Waiting for another user to send
-                          you an offer…
+                          Your listing is live. Waiting for another user to send you an offer…
                         </div>
                       )}
 
-                      {canRespond && (
-                        <div className="mt-4 rounded-2xl border border-[#dbe5ff] bg-[#f5f8ff] p-4 text-sm text-gray-700">
-                          <p className="font-semibold text-gray-900">
-                            You have a swap offer!
-                          </p>
-                          <p className="mt-1">
-                            Matched seat:{" "}
-                            <strong>
-                              {req.matchedSeatLabel || req.matchedSeatId || "—"}
-                            </strong>
-                          </p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            Accept to confirm the swap, or decline to reject it.
-                          </p>
+                      {req.swapStatus === "awaiting_confirmation" && (
+                        <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800">
+                          You have an incoming offer! Go to{" "}
+                          <button
+                            onClick={() => {
+                              setActiveTab("browse");
+                              setError("");
+                            }}
+                            className="font-semibold underline underline-offset-2"
+                          >
+                            Browse Available Swaps
+                          </button>{" "}
+                          to accept or decline it.
                         </div>
                       )}
 
                       {req.swapStatus === "completed" && (
                         <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                           Swap completed! Your new seat:{" "}
-                          <strong>
-                            {req.matchedSeatLabel || req.matchedSeatId || "—"}
-                          </strong>
+                          <strong>{req.matchedSeatLabel || req.matchedSeatId || "—"}</strong>
                         </div>
                       )}
 
@@ -474,29 +479,9 @@ export default function SwapPage() {
                         </div>
                       )}
 
-                      <div className="mt-5 flex flex-wrap gap-3">
-                        {canRespond && (
-                          <>
-                            <button
-                              onClick={() => handleRespond(swapId, "ACCEPT")}
-                              disabled={actingRequestId === swapId}
-                              className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
-                            >
-                              <CheckCircle2 size={15} />
-                              Accept Offer
-                            </button>
-                            <button
-                              onClick={() => handleRespond(swapId, "DECLINE")}
-                              disabled={actingRequestId === swapId}
-                              className="inline-flex items-center gap-2 rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                            >
-                              <XCircle size={15} />
-                              Decline Offer
-                            </button>
-                          </>
-                        )}
-
-                        {canCancel && (
+                      {/* Cancel is the only action available in this tab */}
+                      {canCancel && (
+                        <div className="mt-5">
                           <button
                             onClick={() => handleCancel(req.requestId)}
                             disabled={actingRequestId === req.requestId}
@@ -505,8 +490,8 @@ export default function SwapPage() {
                             <XCircle size={16} />
                             Cancel Listing
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </article>
                   );
                 })}
@@ -515,15 +500,12 @@ export default function SwapPage() {
           </section>
         )}
 
-        {/* ── Tab: Browse Available Swaps ── */}
         {activeTab === "browse" && (
           <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900">
-              Browse Available Swaps
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">Browse Available Swaps</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Select the ticket you want to swap, then pick a listing from
-              another user in the same tier and send them an offer.
+              Select the ticket you want to swap to see matching listings and any
+              incoming offers on your listings.
             </p>
 
             <div className="mt-6">
@@ -547,68 +529,156 @@ export default function SwapPage() {
               </select>
             </div>
 
-            {browseTicket && (
-              <div className="mt-4 rounded-2xl border border-[#ead7dd] bg-[#fff8fa] p-4 text-sm text-gray-700">
-                Showing{" "}
-                <strong>{browseTicket.currentTier}</strong> listings for{" "}
-                <strong>{browseTicket.eventName}</strong>. Click a listing to
-                send a swap offer.
-              </div>
-            )}
-
-            {loadingAvailable && (
-              <div className="mt-6 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-400">
-                Loading listings…
-              </div>
-            )}
-
-            {!loadingAvailable && browseTicket && available.length === 0 && (
-              <div className="mt-6 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
-                <p className="text-sm font-semibold text-gray-800">
-                  No listings available yet.
-                </p>
-                <p className="mt-2 text-sm text-gray-500">
-                  No one has listed a <strong>{browseTicket.currentTier}</strong>{" "}
-                  seat right now. Go to{" "}
-                  <button
-                    onClick={() => setActiveTab("mine")}
-                    className="text-[#1d4ed8] underline"
-                  >
-                    My Swap Request
-                  </button>{" "}
-                  to list your own seat first.
-                </p>
-              </div>
-            )}
-
-            {!loadingAvailable && available.length > 0 && (
-              <div className="mt-6 space-y-4">
+            {/* Prompt when nothing selected and no global incoming offers */}
+            {!browseTicket && filteredIncomingOffers.length === 0 && (
+              <div className="mt-8 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
                 <p className="text-sm text-gray-500">
-                  {available.length} listing
-                  {available.length !== 1 ? "s" : ""} available
+                  Select a ticket above to see matching listings from other users.
                 </p>
-                {available.map((item) => (
-                  <article
-                    key={item.requestId}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-[#fcfbfb] p-5"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {item.currentSeatLabel || item.currentSeatId}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Tier: {item.currentTier}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleSendOffer(item)}
-                      disabled={submitting}
-                      className="rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {submitting ? "Sending…" : "Send Offer"}
-                    </button>
-                  </article>
-                ))}
+              </div>
+            )}
+
+            {!loadingRequests && filteredIncomingOffers.length > 0 && (
+              <div className="mt-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-gray-900">Incoming Offers</h3>
+                  <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                    {filteredIncomingOffers.length}
+                  </span>
+                </div>
+                <p className="mb-4 text-sm text-gray-500">
+                  Someone wants to swap with one of your listings. Accept to confirm or
+                  decline to reject.
+                </p>
+                <div className="space-y-4">
+                  {filteredIncomingOffers.map((req) => {
+                    const swapId = req.swapId || req.requestId;
+                    return (
+                      <article
+                        key={req.requestId}
+                        className="rounded-2xl border border-violet-200 bg-violet-50 p-5"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {req.eventName || req.eventId}
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Your listing: {req.currentSeatLabel || req.currentSeatId}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                            Offer Received
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid gap-2 text-sm text-gray-700">
+                          <p>
+                            <span className="font-semibold text-gray-900">Your tier:</span>{" "}
+                            {req.currentTier}
+                          </p>
+                          <p>
+                            <span className="font-semibold text-gray-900">
+                              Matched seat offered:
+                            </span>{" "}
+                            <strong>{req.matchedSeatLabel || req.matchedSeatId || "—"}</strong>
+                          </p>
+                          <p>
+                            <span className="font-semibold text-gray-900">Their tier:</span>{" "}
+                            {req.desiredTier}
+                          </p>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <button
+                            onClick={() => handleRespond(swapId, "ACCEPT")}
+                            disabled={actingRequestId === swapId}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
+                          >
+                            <CheckCircle2 size={15} />
+                            Accept Offer
+                          </button>
+                          <button
+                            onClick={() => handleRespond(swapId, "DECLINE")}
+                            disabled={actingRequestId === swapId}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            <XCircle size={15} />
+                            Decline Offer
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {browseTicket && (
+              <div className="mt-8">
+                <h3 className="mb-1 text-base font-semibold text-gray-900">
+                  Available Listings
+                </h3>
+                <p className="mb-4 text-sm text-gray-500">
+                  Other users listing a <strong>{browseTicket.currentTier}</strong> seat for{" "}
+                  <strong>{browseTicket.eventName}</strong>. Send them an offer to request a
+                  swap.
+                </p>
+
+                {loadingAvailable && (
+                  <div className="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-400">
+                    Loading listings…
+                  </div>
+                )}
+
+                {!loadingAvailable && available.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
+                    <p className="text-sm font-semibold text-gray-800">
+                      No listings available yet.
+                    </p>
+                    <p className="mt-2 text-sm text-gray-500">
+                      No one has listed a <strong>{browseTicket.currentTier}</strong> seat right
+                      now. Go to{" "}
+                      <button
+                        onClick={() => setActiveTab("mine")}
+                        className="text-[#1d4ed8] underline"
+                      >
+                        My Swap Requests
+                      </button>{" "}
+                      to list your own seat first.
+                    </p>
+                  </div>
+                )}
+
+                {!loadingAvailable && available.length > 0 && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      {available.length} listing{available.length !== 1 ? "s" : ""} available
+                    </p>
+                    {available.map((item) => (
+                      <article
+                        key={item.requestId}
+                        className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-[#fcfbfb] p-5"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {item.currentSeatLabel || item.currentSeatId}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Tier: {item.currentTier} · Wants: {item.desiredTier}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleSendOffer(item)}
+                          disabled={submitting}
+                          className="rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {submitting ? "Sending…" : "Send Offer"}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
