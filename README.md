@@ -157,13 +157,22 @@ No single service controls the flow — each microservice reacts autonomously to
 10. The Notification Service consumes either the `SeatReassigned` or `paymentRefundIssued` event and sends an email to the customer with their new seat details or refund status.
 11. The Notification Service calls the OutSystems Order Service via `HTTP PUT /orders/{orderId}/status/` to update the order to `CONFIRMED` (if reassigned) or `CANCELLED` (if refunded).
 
-### Scenario C — Seat Swap
-1. User A (e.g. has CAT1 seat) goes to **Swap** → lists their ticket
-2. User B (e.g. has CAT2 seat) goes to **Swap** → lists their ticket for the opposite tier
-3. System auto-matches them; both receive a "Swap Match Found" email
-4. Both users accept the offer on the Swap page
-5. Seats are exchanged; price difference is charged/refunded via Stripe
-6. Both receive a "Seat Swap Complete" email with new seat details
+### Scenario C — Seat Swap (Orchestration)
+
+The Swap Orchestration Service acts as the central coordinator managing the end-to-end seat swap flow.
+
+1. Users A and B independently submit swap requests through the UI. The UI calls the Swap Orchestration Service via Kong using `HTTP POST /swap-requests`.
+2. The Swap Service saves the requests into the Swap DB and runs an internal matching algorithm to find compatible users (matching desired tiers).
+3. Once a match is found, the Swap Orchestration Service publishes a `swap.matched` event to RabbitMQ.
+4. The Notification Service consumes the `swap.matched` event and sends an email to both users alerting them of the potential swap.
+5. Upon receiving the alert, both users review the offer in the UI and submit their response via `HTTP POST /swap-matches/{swapId}/response`.
+6. The Orchestrator calculates the price difference between the two seats and applies a 5% platform commission (e.g. if User A upgrades by $20, they are charged $21 and User B receives a $20 refund, leaving $1 for the platform).
+7. To settle the payment, the Orchestrator calls the Payment Service via `HTTP POST /payments` to charge the upgrading user and `HTTP POST /refunds` to refund the downgrading user.
+8. The Payment Service communicates with the Stripe API to process the funds and records the transaction in the Payment DB.
+9. Once payment is confirmed, the Orchestrator calls the Seat Allocation Service via `HTTP POST /swaps/execute` to update the physical seat assignments in the Seat Allocation DB.
+10. The Orchestrator updates the official ownership records in the OutSystems Order Service by calling `HTTP PUT /orders/{orderId}/seat/` twice — once for each order — to finalise the seat exchange.
+11. The Orchestrator publishes a `swap.completed` (or `swap.failed`) event to RabbitMQ.
+12. The Notification Service consumes this event and sends a final confirmation email to both users with their new seat details.
 
 ---
 
