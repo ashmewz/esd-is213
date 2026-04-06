@@ -37,6 +37,13 @@ def _enrich(req):
         user = get_user(user_id)
         if user:
             req["email"] = user.get("email")
+    # Add human-readable seat label
+    event_id = req.get("eventId")
+    seat_id = req.get("currentSeatId")
+    if event_id and seat_id:
+        s = get_seat(event_id, seat_id)
+        if s:
+            req["currentSeatLabel"] = seat_label(s)
     return req
 
 
@@ -64,6 +71,11 @@ def start_swap(order_id, event_id, current_seat_id, desired_tier, current_tier=N
         price_diff = abs(price_a - price_b)
         platform_fee = round(price_diff * PLATFORM_FEE_RATE, 2)
 
+        event = get_event(event_id) or {}
+        event_name = event.get("name", "")
+        raw_date = event.get("eventDate") or event.get("date", "")
+        event_date = raw_date[:10] if raw_date else ""
+
         publish_event(EXCHANGE, "swap.matched", {
             "matchId": match["swapId"],
             "requestADetails": req_a,
@@ -71,6 +83,8 @@ def start_swap(order_id, event_id, current_seat_id, desired_tier, current_tier=N
             "priceDiff": price_diff,
             "platformFee": platform_fee,
             "currency": "SGD",
+            "eventName": event_name,
+            "eventDate": event_date,
         })
     return result
 
@@ -157,19 +171,36 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
  
             user_a = get_user(lister_req.get("userId")) or {}
             user_b = get_user(offerer_req.get("userId")) or {}
+
+            # Enrich seat labels and event info for the notification
+            seat_a_data = get_seat(event_id, seat_a) or {}
+            seat_b_data = get_seat(event_id, seat_b) or {}
+            event_data  = get_event(event_id) or {}
+            event_name  = event_data.get("name", "")
+            raw_date    = event_data.get("eventDate") or event_data.get("date", "")
+            event_date  = raw_date[:10] if raw_date else ""
+            venue_name  = event_data.get("venueName", "")
+
             publish_event(EXCHANGE, "swap.completed", {
                 "swapId": swap_id,
                 "matchedRequestId": matched_request_id,
+                "eventName": event_name,
+                "eventDate": event_date,
+                "venueName": venue_name,
                 "userA": {
                     "userId": lister_req.get("userId"),
                     "email": user_a.get("email"),
                     "oldSeatId": seat_a,
                     "newSeatId": seat_b,
+                    "oldSeatLabel": seat_label(seat_a_data),
+                    "newSeatLabel": seat_label(seat_b_data),
+                    "oldTier": tier_a,
                     "tier": tier_b,
                     **({
                         "priceDiff": payment_info.get("priceDiff"),
                         "platformFee": payment_info.get("platformFee"),
                         "totalCharged": payment_info.get("totalCharged"),
+                        "paymentType": "refund",
                     } if price_b > price_a and payment_info else {}),
                 },
                 "userB": {
@@ -177,11 +208,15 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                     "email": user_b.get("email"),
                     "oldSeatId": seat_b,
                     "newSeatId": seat_a,
+                    "oldSeatLabel": seat_label(seat_b_data),
+                    "newSeatLabel": seat_label(seat_a_data),
+                    "oldTier": tier_b,
                     "tier": tier_a,
                     **({
                         "priceDiff": payment_info.get("priceDiff"),
                         "platformFee": payment_info.get("platformFee"),
                         "totalCharged": payment_info.get("totalCharged"),
+                        "paymentType": "charge",
                     } if price_a > price_b and payment_info else {}),
                 },
             })
@@ -234,11 +269,10 @@ def get_my_swap_requests(user_id):
         ev = _event(eid) if eid else {}
         s  = _seat(eid, sid) if (eid and sid) else None
 
-        matched_seat_id = req.get("matchedSeatId")
-        matched_seat = _seat(eid, matched_seat_id) if (eid and matched_seat_id) else None
-
         swap_id = None
         matched_request_id = None
+        matched_seat = None
+        user_has_responded = False
 
         if req.get("status") in ["MATCHED", "COMPLETED"]:
             swap_data = get_swap_status_by_request(req["requestId"])
@@ -251,6 +285,22 @@ def get_my_swap_requests(user_id):
                 else:
                     matched_request_id = swap_data.get("requestA")
 
+                # Look up the matched request to get its seat
+                if matched_request_id:
+                    matched_req = get_swap_request(matched_request_id)
+                    if matched_req:
+                        matched_seat_id = matched_req.get("currentSeatId")
+                        matched_seat = _seat(eid, matched_seat_id) if (eid and matched_seat_id) else None
+
+                # Check if this user has already responded
+                if swap_id:
+                    full_swap = get_swap_status(swap_id)
+                    if full_swap:
+                        confirmations = full_swap.get("confirmations", [])
+                        user_has_responded = any(
+                            str(c.get("userId")) == str(user_id) for c in confirmations
+                        )
+
         result.append({
             **req,
             "eventName": ev.get("name"),
@@ -260,6 +310,7 @@ def get_my_swap_requests(user_id):
             "swapStatus": _STATUS_MAP.get(req.get("status", ""), "pending"),
             "swapId": swap_id,
             "matchedRequestId": matched_request_id,
+            "userHasResponded": user_has_responded,
         })
     return result
 
