@@ -1,0 +1,109 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Booking Service API",
+    "version": "1.0.0",
+    "description": "API for placing ticket bookings"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local Kong API gateway"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Booking",
+      "description": "Booking operations"
+    }
+  ],
+  "paths": {
+    "/place-booking": {
+      "post": {
+        "tags": ["Booking"],
+        "summary": "Place booking for one seat",
+        "operationId": "placeBooking",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orderId": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "PlaceBookingRequest": {
+        "type": "object",
+        "required": ["userId", "eventId", "seatId"],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seatId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cardLast4": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4
+          }
+        }
+      }
+    }
+  }
+}
