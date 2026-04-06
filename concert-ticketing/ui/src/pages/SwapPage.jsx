@@ -56,7 +56,7 @@ export default function SwapPage() {
     try {
       const data = await getMySwapRequests(currentUserId);
       const all = Array.isArray(data) ? data : [];
-      setMyListings(all.filter(r => r.swapStatus !== "completed"));
+      setMyListings(all);
       setIncomingOffers(all.filter((r) => r.swapStatus === "awaiting_confirmation"));
     } catch (err) {
       setError(err.message || "Could not load swap requests.");
@@ -178,6 +178,8 @@ export default function SwapPage() {
     try {
       await respondToSwapRequest(swapId, currentUserId, response, matchRequestId);
       await loadRequests();
+      // Switch to My Swap Requests tab so user sees the completed status
+      setActiveTab("mine");
     } catch (err) {
       setError(err.message || "Could not submit response.");
     } finally {
@@ -479,9 +481,27 @@ export default function SwapPage() {
                       )}
 
                       {req.swapStatus === "completed" && (
-                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                          Swap completed! Your new seat:{" "}
-                          <strong>{req.matchedSeatLabel || req.matchedSeatId || "—"}</strong>
+                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                          <p className="text-sm font-bold text-emerald-800">
+                            ✓ Swap Complete!
+                          </p>
+                          <p className="mt-1 text-sm text-emerald-700">
+                            Your ticket has been successfully swapped.
+                          </p>
+                          <div className="mt-3 grid grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Previous Seat</p>
+                              <p className="mt-1 text-sm font-medium text-gray-500 line-through">
+                                {req.currentTier} · {req.currentSeatLabel || "—"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-emerald-300 bg-white px-3 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Your New Seat</p>
+                              <p className="mt-1 text-sm font-semibold text-emerald-800">
+                                {req.desiredTier} · {req.matchedSeatLabel || "—"}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -607,14 +627,20 @@ export default function SwapPage() {
                         </div>
 
                         <div className="mt-5 flex flex-wrap gap-3">
-                          <button
-                            onClick={() => handleRespond(req.swapId, req.matchedRequestId, "ACCEPT")}
-                            disabled={actingRequestId === req.swapId}
-                            className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
-                          >
-                            <CheckCircle2 size={15} />
-                            Accept Offer
-                          </button>
+                          {req.userHasResponded ? (
+                            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-700 font-medium">
+                              ✓ You accepted — waiting for the other party to respond…
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleRespond(req.swapId, req.matchedRequestId, "ACCEPT")}
+                              disabled={actingRequestId === req.swapId}
+                              className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
+                            >
+                              <CheckCircle2 size={15} />
+                              {actingRequestId === req.swapId ? "Submitting…" : "Accept Offer"}
+                            </button>
+                          )}
                         </div>
                       </article>
                     );
@@ -623,7 +649,7 @@ export default function SwapPage() {
               </div>
             )}
 
-            {browseTicket && (
+            {browseTicket && filteredIncomingOffers.length === 0 && (
               <div className="mt-8">
                 <h3 className="mb-1 text-base font-semibold text-gray-900">
                   Available Listings
