@@ -18,8 +18,19 @@
     docker compose down
 
 # swagger api docs
-OpenAPI file location:
-- ./docs/swagger/openapi.yaml
+OpenAPI file locations:
+- Consolidated spec: 
+  - ./docs/swagger/openapi.yaml (YAML format)
+  - ./docs/swagger/openapi.json (JSON format)
+- Individual service specs (JSON):
+  - ./docs/swagger/events-service.json
+  - ./docs/swagger/user-service.json
+  - ./docs/swagger/seat-allocation-service.json
+  - ./docs/swagger/booking-service.json
+  - ./docs/swagger/swap-service.json
+  - ./docs/swagger/swap-orchestration-service.json
+  - ./docs/swagger/payment-service.json
+  - ./docs/swagger/outsystems-orders-api.json
 
 Orders API note:
 - OutSystems base:
@@ -34,12 +45,21 @@ Verified OutSystems Order APIs (from swagger.json):
 
 Option 1: open in Swagger Editor online
 1. go to https://editor.swagger.io/
-2. copy the file contents from ./docs/swagger/openapi.yaml and paste
+2. Consolidated: copy the file contents from ./docs/swagger/openapi.yaml and paste
+   OR individual service: open any ./docs/swagger/{service-name}.json and copy/paste
+3. View the API documentation
 
 Option 2: run Swagger UI locally with Docker
-1. from concert-ticketing folder, run:
+1. For consolidated spec, from concert-ticketing folder, run:
    docker run --rm -p 8081:8080 \
    -e SWAGGER_JSON=/spec/openapi.yaml \
    -v "${PWD}/docs/swagger:/spec" \
    swaggerapi/swagger-ui
-2. open http://localhost:8081
+   
+2. For individual service (e.g., events-service), run:
+   docker run --rm -p 8081:8080 \
+   -e SWAGGER_JSON=/spec/events-service.json \
+   -v "${PWD}/docs/swagger:/spec" \
+   swaggerapi/swagger-ui
+
+3. open http://localhost:8081
