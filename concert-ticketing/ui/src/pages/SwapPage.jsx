@@ -173,7 +173,7 @@ export default function SwapPage() {
   // swapId       = swap match ID → used in URL: POST /swap-matches/<swapId>/response
   // matchedReqId = requestId of the party who sent the offer → sent in the body
   async function handleRespond(swapId, matchRequestId, response) {
-    setActingRequestId(requestId);
+    setActingRequestId(swapId);
     setError("");
     try {
       await respondToSwapRequest(swapId, currentUserId, response, matchRequestId);
