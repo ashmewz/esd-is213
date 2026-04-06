@@ -18,13 +18,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Mock only (no backend route yet) ─────────────────────────────────────────
-export {
-  USER_ID,
-  adminCreateEvent,
-  adminUpdateEvent,
-  adminDeleteEvent,
-} from "./mock/mockApi";
+
+// ── Admin event management (real backend) ───────────────────────────────────
+// Create event
+export async function adminCreateEvent(data) {
+  const res = await api.post("/events", data);
+  return res.data;
+}
+
+// Update event
+export async function adminUpdateEvent(eventId, data) {
+  const res = await api.put(`/events/${eventId}`, data);
+  return res.data;
+}
+
+// Delete event
+export async function adminDeleteEvent(eventId) {
+  const res = await api.delete(`/events/${eventId}`);
+  return res.data;
+}
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 export async function getMyNotifications(userId) {
