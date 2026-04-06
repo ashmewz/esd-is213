@@ -146,7 +146,11 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                 payment_info["totalCharged"] = round(price_diff + platform_fee, 2)
  
             _execute_swap(order_a, seat_a, order_b, seat_b)
- 
+
+            # Update order records so each order reflects the new seat
+            update_order_seat(order_a, seat_b)
+            update_order_seat(order_b, seat_a)
+
             if event_id:
                 update_seat_status(event_id, seat_a, "sold")
                 update_seat_status(event_id, seat_b, "sold")
