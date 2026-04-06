@@ -20,6 +20,16 @@ _TYPE_MAP = {
 }
 
 
+def get_transaction_by_order(order_id):
+    """Return the most recent successful PAYMENT transaction for a given order_id."""
+    return (
+        db.session.query(Transaction)
+        .filter_by(order_id=str(order_id), type="PAYMENT", status="SUCCESS")
+        .order_by(Transaction.created_at.desc())
+        .first()
+    )
+
+
 def process_purchase(order_id, user_id, amount, currency, payment_type, idempotency_key, card_last4=""):
     """Process a purchase payment for Scenario A.
 
@@ -105,6 +115,80 @@ def process_purchase(order_id, user_id, amount, currency, payment_type, idempote
     except Exception:
         db.session.rollback()
         logger.exception("Failed to persist transaction result")
+        raise
+
+    return txn
+
+
+def process_refund(order_id, user_id, amount, currency, original_payment_intent_id,
+                   platform_fee=0, idempotency_key=None):
+    """Process a refund back to the original payment method.
+
+    Used in Scenario C (cross-tier swap) to refund User A the price difference.
+    The platform_fee is kept by the platform and not refunded.
+    """
+    if not order_id or not original_payment_intent_id:
+        raise ValueError("orderId and originalPaymentIntentId are required.")
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        raise ValueError("amount must be a number.")
+
+    if amount <= 0:
+        raise ValueError("amount must be greater than 0.")
+
+    currency = str(currency).upper() if currency else ""
+    if currency not in _SUPPORTED_CURRENCIES:
+        raise ValueError(f"Unsupported currency '{currency}'.")
+
+    # Idempotency check
+    if idempotency_key:
+        existing = db.session.query(Transaction).filter_by(idempotency_key=idempotency_key).first()
+        if existing:
+            return existing
+
+    txn = Transaction(
+        order_id=str(order_id),
+        user_id=str(user_id) if user_id else None,
+        type="REFUND",
+        amount=amount,
+        currency=currency,
+        platform_fee=float(platform_fee) if platform_fee else 0,
+        idempotency_key=idempotency_key or None,
+        status="PENDING",
+    )
+    try:
+        db.session.add(txn)
+        db.session.flush()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Failed to create pending refund transaction")
+        raise
+
+    try:
+        result = _provider.refund(
+            external_ref_id=original_payment_intent_id,
+            amount=amount,
+            currency=currency,
+        )
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Unexpected error from payment provider during refund")
+        raise RuntimeError("Payment provider error.") from exc
+
+    if result.success:
+        txn.status = "SUCCESS"
+        txn.external_ref_id = result.provider_txn_id
+    else:
+        txn.status = "FAILED"
+        txn.failure_reason = result.failure_reason
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Failed to persist refund result")
         raise
 
     return txn
