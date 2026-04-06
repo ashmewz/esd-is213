@@ -25,6 +25,17 @@ def _format_date(raw: str) -> str:
 
 
 def send_notification(event_type: str, data: dict):
+    # Swap events that must notify two users
+    if event_type == "swap.matched":
+        _send_swap_matched(data)
+        return
+    elif event_type == "swap.completed":
+        _send_swap_completed(data)
+        return
+    elif event_type == "swap.failed":
+        _send_swap_failed(data)
+        return
+
     subject = _build_subject(event_type)
     html = _build_html(event_type, data)
     plain = _build_plain(event_type, data)
@@ -34,6 +45,180 @@ def send_notification(event_type: str, data: dict):
         _send_email(recipient_email, subject, plain, html)
     else:
         print(f"[!] No email address in payload for event '{event_type}'. Skipping email.")
+
+
+def _send_swap_matched(data: dict):
+    subject = f"You Have a Seat Swap Match! | {APP_NAME}"
+    price_diff = data.get("priceDiff", 0)
+    platform_fee = data.get("platformFee", 0)
+    currency = data.get("currency", "SGD")
+
+    for key in ("requestADetails", "requestBDetails"):
+        party = data.get(key, {})
+        email = party.get("email")
+        if not email:
+            continue
+
+        # Determine if this party is upgrading or downgrading
+        if price_diff and price_diff > 0:
+            other_key = "requestBDetails" if key == "requestADetails" else "requestADetails"
+            other = data.get(other_key, {})
+            # The party whose desiredTier is the other's currentTier that's more expensive is upgrading
+            # Simplification: include the price info for both, label it clearly
+            price_note_plain = (
+                f"\nPrice Difference: {currency} {price_diff:.2f}\n"
+                f"Platform Fee:     {currency} {platform_fee:.2f}\n"
+                f"(The upgrading party will be charged the difference + fee upon acceptance.)\n"
+            )
+            price_note_html = f"""
+          <p style="color:#374151;font-size:14px;line-height:1.6;margin-top:12px;padding:12px 16px;background:#FEF3C7;border-radius:8px;border-left:4px solid #D97706;">
+            <strong>Price Difference:</strong> {currency} {price_diff:.2f}<br>
+            <strong>Platform Fee:</strong> {currency} {platform_fee:.2f}<br>
+            <span style="font-size:12px;color:#6B7280;">The upgrading party will be charged the price difference + platform fee. The downgrading party receives a refund of the price difference.</span>
+          </p>"""
+        else:
+            price_note_plain = ""
+            price_note_html = ""
+
+        plain = (
+            f"Great news! A swap match has been found for your seat.\n\n"
+            f"{price_note_plain}"
+            f"Please log in to {APP_NAME} to review the offer and accept or decline.\n\n"
+            f"— The {APP_NAME} Team"
+        )
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F9FAFB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9FAFB;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:#2563EB;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:32px;">🔄</p>
+          <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Swap Match Found!</h1>
+        </td></tr>
+        <tr><td style="padding:28px 40px;">
+          <p style="color:#374151;font-size:15px;line-height:1.6;">A match has been found for your seat swap request. Please log in to <strong>{APP_NAME}</strong> to review and respond to the offer.</p>
+          {price_note_html}
+        </td></tr>
+        <tr><td style="background:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+          <p style="margin:0;color:#9CA3AF;font-size:12px;">This email was sent by <strong style="color:#2563EB;">{APP_NAME}</strong>. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+        _send_email(email, subject, plain, html)
+
+
+def _send_swap_completed(data: dict):
+    subject = f"Your Seat Swap is Complete | {APP_NAME}"
+    for key in ("userA", "userB"):
+        party = data.get(key, {})
+        email = party.get("email")
+        if not email:
+            continue
+        old_seat = party.get("oldSeatId", "N/A")
+        new_seat = party.get("newSeatId", "N/A")
+        tier = party.get("tier", "N/A")
+        price_diff = party.get("priceDiff")
+        platform_fee = party.get("platformFee")
+        total_charged = party.get("totalCharged")
+
+        payment_lines = ""
+        if total_charged:
+            payment_lines = (
+                f"Price Difference: SGD {price_diff:.2f}\n"
+                f"Platform Fee:     SGD {platform_fee:.2f}\n"
+                f"Total Charged:    SGD {total_charged:.2f}\n"
+            )
+        plain = (
+            f"Your seat swap has been completed!\n\n"
+            f"Old Seat:  {old_seat}\n"
+            f"New Seat:  {new_seat}\n"
+            f"Tier:      {tier}\n"
+            f"{payment_lines}\n"
+            f"— The {APP_NAME} Team"
+        )
+        rows = [
+            ("Old Seat", old_seat),
+            ("New Seat", new_seat),
+            ("Tier",     tier),
+        ]
+        if total_charged:
+            rows += [
+                ("Price Difference", f"SGD {price_diff:.2f}"),
+                ("Platform Fee",     f"SGD {platform_fee:.2f}"),
+                ("Total Charged",    f"SGD {total_charged:.2f}"),
+            ]
+        rows_html = "".join(
+            f'<tr><td style="padding:10px 16px;color:#6B7280;font-size:14px;border-bottom:1px solid #F3F4F6;">{lbl}</td>'
+            f'<td style="padding:10px 16px;color:#111827;font-size:14px;font-weight:600;border-bottom:1px solid #F3F4F6;">{val}</td></tr>'
+            for lbl, val in rows
+        )
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F9FAFB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9FAFB;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:#2563EB;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:32px;">🔄</p>
+          <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Seat Swap Complete!</h1>
+        </td></tr>
+        <tr><td style="padding:28px 40px 8px;text-align:center;">
+          <p style="margin:0;color:#6B7280;font-size:15px;line-height:1.6;">Your seat swap has been finalized.</p>
+        </td></tr>
+        <tr><td style="padding:16px 40px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">{rows_html}</table>
+        </td></tr>
+        <tr><td style="background:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+          <p style="margin:0;color:#9CA3AF;font-size:12px;">This email was sent by <strong style="color:#2563EB;">{APP_NAME}</strong>. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+        _send_email(email, subject, plain, html)
+
+
+def _send_swap_failed(data: dict):
+    subject = f"Seat Swap Declined | {APP_NAME}"
+    for email_key in ("emailA", "emailB"):
+        email = data.get(email_key)
+        if not email:
+            continue
+        plain = (
+            f"Unfortunately, your seat swap has been declined by the other party.\n\n"
+            f"You can submit a new swap request any time.\n\n"
+            f"— The {APP_NAME} Team"
+        )
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#F9FAFB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9FAFB;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background:#DC2626;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:32px;">❌</p>
+          <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Swap Declined</h1>
+        </td></tr>
+        <tr><td style="padding:28px 40px;">
+          <p style="color:#374151;font-size:15px;line-height:1.6;">Your seat swap was declined by the other party. You can submit a new swap request any time from your account.</p>
+        </td></tr>
+        <tr><td style="background:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+          <p style="margin:0;color:#9CA3AF;font-size:12px;">This email was sent by <strong style="color:#DC2626;">{APP_NAME}</strong>. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+        _send_email(email, subject, plain, html)
 
 
 def _build_subject(event_type: str) -> str:
