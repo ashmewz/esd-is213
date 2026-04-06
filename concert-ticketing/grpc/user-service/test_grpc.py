@@ -9,13 +9,13 @@ def main():
     # ---- Test CreateUser ----
     try:
         create_response = stub.CreateUser(user_pb2.CreateUserRequest(
-            name="Alice",
+            username="Alice",
             email="alice@example.com",
             password="1234"
         ))
         print("CreateUser response:")
         print(f"ID: {create_response.user.id}")
-        print(f"Name: {create_response.user.name}")
+        print(f"Username: {create_response.user.username}")
         print(f"Email: {create_response.user.email}")
     except grpc.RpcError as e:
         print(f"CreateUser failed: {e.details()} (code: {e.code()})")
@@ -29,7 +29,7 @@ def main():
         print("\nLoginUser response:")
         print(f"Token: {login_response.token}")
         print(f"User ID: {login_response.user.id}")
-        print(f"User Name: {login_response.user.name}")
+        print(f"Username: {login_response.user.username}")
         print(f"User Email: {login_response.user.email}")
     except grpc.RpcError as e:
         print(f"LoginUser failed: {e.details()} (code: {e.code()})")

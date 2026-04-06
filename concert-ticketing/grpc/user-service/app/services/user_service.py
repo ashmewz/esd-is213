@@ -9,8 +9,6 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 
 class UserService:
-    _users = {}
-    _next_id = 1
 
     @staticmethod
     def register_user(data):
@@ -61,17 +59,26 @@ class UserService:
 
         return token, user.to_dict()
 
-    @classmethod
+    @staticmethod
     def get_user(user_id):
-        user = UserService._users.get(int(user_id))
+        db = SessionLocal()
+        user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise Exception("User not found")
-        return user
+        return user.to_dict()
 
-    @classmethod
+    @staticmethod
     def list_users():
-        return list(UserService._users.values())
+        db = SessionLocal()
+        users = db.query(User).all()
+        return [u.to_dict() for u in users]
 
-    @classmethod
+    @staticmethod
     def delete_user(user_id):
-        return UserService._users.pop(int(user_id), None)
+        db = SessionLocal()
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            raise Exception("User not found")
+        db.delete(user)
+        db.commit()
+        return {"message": "User deleted"}

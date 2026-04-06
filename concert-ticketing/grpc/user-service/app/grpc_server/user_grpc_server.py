@@ -1,9 +1,14 @@
 import grpc
+import jwt
+import os
 from concurrent import futures
 from app.grpc_server import user_pb2, user_pb2_grpc
 from app.core.database import SessionLocal
 from app.models.user_model import User
 import bcrypt
+
+JWT_SECRET = os.getenv("JWT_SECRET", "stagepass-secret-key")
+JWT_ALGORITHM = "HS256"
 
 class UserService(user_pb2_grpc.UserServiceServicer):
 
@@ -50,8 +55,14 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         ):
             context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid credentials")
 
+        token = jwt.encode(
+            {"sub": str(user.user_id), "email": user.email, "username": user.username},
+            JWT_SECRET,
+            algorithm=JWT_ALGORITHM
+        )
+
         return user_pb2.LoginResponse(
-            token="real-token-here",
+            token=token,
             user=user_pb2.User(
                 id=str(user.user_id),
                 username=user.username,
