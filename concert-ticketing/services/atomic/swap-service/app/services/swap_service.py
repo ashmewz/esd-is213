@@ -62,8 +62,8 @@ def _find_match(db, request):
         b_wants_a = candidate.desired_tier == request.current_tier
         if a_wants_b and b_wants_a:
             match = SwapMatch(
-                request_a=request.request_id,
-                request_b=candidate.request_id,
+                request_a=candidate.request_id,
+                request_b=request.request_id,
                 status="MATCHED",
             )
             db.add(match)
@@ -111,20 +111,16 @@ def submit_swap_response(swap_id, user_id, response):
 
         result = _evaluate_swap(db, swap_id)
 
-        if result["status"] in ("READY_FOR_EXECUTION", "FAILED"):
-            swap.status = result["status"]
-
-            if result["status"] == "READY_FOR_EXECUTION":
-                req_a = db.query(SwapRequest).get(swap.request_a)
-                req_b = db.query(SwapRequest).get(swap.request_b)
-
-                if req_a:
-                    req_a.status = "COMPLETED"
-                if req_b:
-                    req_b.status = "COMPLETED"
-
-                _cancel_related_requests(db, [swap.request_a, swap.request_b])
-
+        if result["status"] == "READY_FOR_EXECUTION":
+            swap.status = "READY_FOR_EXECUTION"
+            req_a = db.query(SwapRequest).get(swap.request_a)
+            req_b = db.query(SwapRequest).get(swap.request_b)
+            if req_a:
+                req_a.status = "COMPLETED"
+            if req_b:
+                req_b.status = "COMPLETED"
+            _cancel_related_requests(db, [swap.request_a, swap.request_b])
+           
             db.commit()
 
         return result
@@ -156,10 +152,9 @@ def _evaluate_swap(db, swap_id):
 
 
 def get_swap_request(request_id):
-    """Get a single swap request by ID."""
     db = SessionLocal()
     try:
-        request = db.query(SwapRequest).get(request_id)
+        request = db.query(SwapRequest).get(uuid.UUID(str(request_id)))
         return request.to_dict() if request else None
     finally:
         db.close()
@@ -171,13 +166,6 @@ def get_swap_status(swap_id):
         swap = db.query(SwapMatch).get(swap_id)
         if not swap:
             return None
-
-        status = _evaluate_swap(db, swap_id)["status"]
-
-        if status == "READY_FOR_EXECUTION":
-            swap.status = "COMPLETED"
-            db.commit()
-
         confirmations = (
             db.query(SwapConfirmation)
             .filter(SwapConfirmation.swap_id == swap_id)
@@ -187,7 +175,7 @@ def get_swap_status(swap_id):
         return {
             "swap": swap.to_dict(),
             "confirmations": [c.to_dict() for c in confirmations],
-            "status": status,
+            "status": swap.status,
         }
     finally:
         db.close()
@@ -299,3 +287,4 @@ def get_swap_by_request(request_id):
 
     finally:
         db.close()
+

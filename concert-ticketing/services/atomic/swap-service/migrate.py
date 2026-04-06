@@ -89,5 +89,5 @@ with engine3.connect() as conn:
         print(f"[migrate] Version check error (non-fatal): {e}")
 engine3.dispose()
 
-print("[migrate] Running alembic upgrade head...")
-subprocess.run(["alembic", "upgrade", "head"], check=True)
+# print("[migrate] Running alembic upgrade head...")
+# subprocess.run(["alembic", "upgrade", "head"], check=True)

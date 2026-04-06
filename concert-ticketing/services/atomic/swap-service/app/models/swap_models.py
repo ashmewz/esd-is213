@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, UniqueConstraint
+from sqlalchemy import BigInteger, Column, String, DateTime, func, UniqueConstraint
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -8,7 +8,7 @@ class SwapRequest(Base):
     __table_args__ = {"schema": "swap_service"}
 
     request_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), nullable=False)
+    order_id = Column(BigInteger, nullable=False)
     event_id = Column(UUID(as_uuid=True), nullable=False)
     current_seat_id = Column(UUID(as_uuid=True), nullable=False)
     desired_tier = Column(String(20))
@@ -21,7 +21,7 @@ class SwapRequest(Base):
     def to_dict(self):
         return {
             "requestId": str(self.request_id),
-            "orderId": str(self.order_id) if self.order_id is not None else None,
+            "orderId": self.order_id,
             "eventId": str(self.event_id),
             "currentSeatId": str(self.current_seat_id),
             "desiredTier": self.desired_tier,

@@ -1,3 +1,5 @@
+import uuid
+
 from flask import Blueprint, request, jsonify
 from app.services.swap_service import (
     create_swap_request,
@@ -44,13 +46,28 @@ def cancel_swap_request_route(request_id):
 @swap_bp.route("/swap", methods=["POST"])
 def create_swap_request_route():
     payload = request.get_json(silent=True)
-    required_fields = ["orderId", "eventId", "currentSeatId", "desiredTier"]
+    if not payload:
+        return jsonify({"error": "Invalid JSON"}), 400
 
-    if not payload or any(f not in payload for f in required_fields):
-        return jsonify({"error": f"Fields required: {required_fields}"}), 400
+    try:
+        payload["eventId"]      = str(uuid.UUID(payload["eventId"]))
+        payload["currentSeatId"] = str(uuid.UUID(payload["currentSeatId"]))
+        if "userId" in payload:
+            payload["userId"] = str(uuid.UUID(str(payload["userId"])))
+    except (KeyError, ValueError) as e:
+        return jsonify({"error": f"Invalid UUID field: {str(e)}"}), 400
+
+    order_id = payload.get("orderId")
+    if order_id is None:
+        return jsonify({"error": "Missing required field: orderId"}), 400
+
+    required_fields = ["eventId", "currentSeatId", "desiredTier"]
+    missing = [f for f in required_fields if not payload.get(f)]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {missing}"}), 400
 
     result = create_swap_request(
-        order_id=payload["orderId"],
+        order_id=str(order_id),           # store as string regardless of int/uuid
         event_id=payload["eventId"],
         current_seat_id=payload["currentSeatId"],
         desired_tier=payload["desiredTier"],
@@ -58,7 +75,6 @@ def create_swap_request_route():
         user_id=payload.get("userId"),
     )
     return jsonify({"message": "Swap request created", "data": result}), 201
-
 
 @swap_bp.route("/swap/<swap_id>/responses", methods=["POST"])
 def submit_swap_response_route(swap_id):
@@ -82,14 +98,6 @@ def get_swap_request_route(request_id):
         return jsonify({"error": "Swap request not found"}), 404
     return jsonify({"data": result}), 200
 
-
-@swap_bp.route("/swap/<swap_id>", methods=["GET"])
-def get_swap_status_route(swap_id):
-    result = get_swap_status(swap_id)
-    if not result:
-        return jsonify({"error": "Swap not found"}), 404
-    return jsonify({"data": result}), 200
-
 @swap_bp.route("/swap/by-request/<request_id>", methods=["GET"])
 def get_swap_by_request_route(request_id):
     from app.services.swap_service import get_swap_by_request
@@ -97,3 +105,11 @@ def get_swap_by_request_route(request_id):
     swap = get_swap_by_request(request_id)
 
     return jsonify({"data": swap}), 200
+
+
+@swap_bp.route("/swap/<swap_id>", methods=["GET"])
+def get_swap_status_route(swap_id):
+    result = get_swap_status(swap_id)
+    if not result:
+        return jsonify({"error": "Swap not found"}), 404
+    return jsonify({"data": result}), 200

@@ -46,18 +46,27 @@ def cancel_swap_route(request_id):
 @swap_orchestration_bp.route("/swap-requests", methods=["POST"])
 def create_swap_route():
     payload = request.get_json(silent=True)
+    required_fields = ["orderId", "eventId", "currentSeatId", "desiredTier"]
+    missing = [f for f in required_fields if not payload.get(f)]
     if not payload:
         return jsonify({"error": "Invalid JSON"}), 400
-    order_id = payload.get("orderId")
-    event_id = payload.get("eventId")
-    current_seat_id = payload.get("currentSeatId")
-    current_tier = payload.get("currentTier")
-    desired_tier = payload.get("desiredTier")
-    user_id = payload.get("userId")
-    if not all([order_id, event_id, current_seat_id, desired_tier]):
-        return jsonify({"error": "Missing required fields"}), 400
-    result = start_swap(order_id, event_id, current_seat_id, desired_tier, current_tier=current_tier, user_id=user_id)
-    return jsonify({"message": "Swap request created", "data": result}), 201
+    if missing:
+        return jsonify({"error": f"Missing required fields: {missing}"}), 400
+
+    try:
+        result = start_swap(
+            order_id=payload["orderId"],
+            event_id=payload["eventId"],
+            current_seat_id=payload["currentSeatId"],
+            desired_tier=payload["desiredTier"],
+            current_tier=payload.get("currentTier"),
+            user_id=payload.get("userId"),
+        )
+        return jsonify({"message": "Swap request created", "data": result}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Internal server error: {e}"}), 500
 
 
 @swap_orchestration_bp.route("/swap-matches/<swap_id>/response", methods=["POST"])
