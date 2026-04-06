@@ -33,20 +33,20 @@ services:
 - name: user-service-login
   url: http://user-service:5000
   routes:
-  - name: user-login
-    paths:
-    - /users/login
-    methods: ["POST","OPTIONS"]
-    strip_path: false
+    - name: user-login
+      paths:
+        - /users/login
+      methods: ["POST","OPTIONS"]   
+      strip_path: false
 
 - name: user-service
   url: http://user-service:5000
   routes:
-  - name: users
-    paths:
-    - /users
-    methods: ["GET","POST","DELETE","OPTIONS"]
-    strip_path: false
+    - name: users
+      paths:
+        - /users
+      methods: ["GET","POST","DELETE","OPTIONS"]  
+      strip_path: false
 
 - name: events-service
   url: http://events-service:5000

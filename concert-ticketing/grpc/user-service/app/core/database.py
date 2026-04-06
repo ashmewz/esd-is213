@@ -25,7 +25,7 @@ Base = declarative_base()
 def init_schema():
     """Create the service schema if it does not exist (idempotent)."""
     with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS events_service"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS user_service"))
         conn.commit()
 
 
