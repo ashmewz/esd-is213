@@ -57,7 +57,7 @@ export default function MyTicketsPage() {
   const [error, setError] = useState("");
   const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [selectedFilter, setSelectedFilter] = useState("confirmed");
 
   async function loadOrders() {
     setLoading(true);
@@ -291,7 +291,7 @@ export default function MyTicketsPage() {
                                     key={`${order.orderId}-${item.seatId}-${index}`}
                                     className="rounded-full bg-[#f8fafc] px-3 py-1.5 text-xs text-gray-700 ring-1 ring-gray-200"
                                   >
-                                    {item.seatLabel || `Section ${item.sectionNo} · Row ${item.rowNo} · Seat ${item.seatNo}`}
+                                    {item.seatLabel || (item.sectionNo && item.rowNo && item.seatNo ? `Section ${item.sectionNo} · Row ${item.rowNo} · Seat ${item.seatNo}` : item.seatId || "Seat info unavailable")}
                                   </span>
                                 ))}
                               </div>
