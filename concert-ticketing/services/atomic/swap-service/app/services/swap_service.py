@@ -115,6 +115,14 @@ def submit_swap_response(swap_id, user_id, response):
             swap.status = result["status"]
 
             if result["status"] == "READY_FOR_EXECUTION":
+                req_a = db.query(SwapRequest).get(swap.request_a)
+                req_b = db.query(SwapRequest).get(swap.request_b)
+
+                if req_a:
+                    req_a.status = "COMPLETED"
+                if req_b:
+                    req_b.status = "COMPLETED"
+
                 _cancel_related_requests(db, [swap.request_a, swap.request_b])
 
             db.commit()
@@ -166,7 +174,7 @@ def get_swap_status(swap_id):
 
         status = _evaluate_swap(db, swap_id)["status"]
 
-        if status == "READY_FOR_EXECUTION" and swap.status == "MATCHED":
+        if status == "READY_FOR_EXECUTION":
             swap.status = "COMPLETED"
             db.commit()
 

@@ -56,7 +56,7 @@ export default function SwapPage() {
     try {
       const data = await getMySwapRequests(currentUserId);
       const all = Array.isArray(data) ? data : [];
-      setMyListings(all);
+      setMyListings(all.filter(r => r.swapStatus !== "completed"));
       setIncomingOffers(all.filter((r) => r.swapStatus === "awaiting_confirmation"));
     } catch (err) {
       setError(err.message || "Could not load swap requests.");
