@@ -186,24 +186,28 @@ export async function getMyOrders(userId) {
   const res = await api.get(`/orders/`, { params: { userId } });
   const orders = Array.isArray(res.data) ? res.data : [];
 
-  // Enrich each order with event + seat details from our events service
+  // Deduplicate event IDs and fetch all events in parallel (one request per unique event)
+  const uniqueEventIds = [...new Set(orders.map((o) => o.eventId).filter(Boolean))];
+  const eventMap = {};
+  await Promise.all(
+    uniqueEventIds.map(async (eventId) => {
+      try {
+        const r = await api.get(`/events/${eventId}`);
+        eventMap[eventId] = r.data;
+      } catch {
+        eventMap[eventId] = {};
+      }
+    })
+  );
+
+  // Enrich each order — event data comes from cache, seat fetches run in parallel
   const enriched = await Promise.all(
     orders.map(async (order) => {
-      let eventName = null;
-      let venueName = null;
-      let eventDate = null;
-      let eventTiming = null;
-
-      try {
-        const eventRes = await api.get(`/events/${order.eventId}`);
-        const event = eventRes.data;
-        eventName = event.name ?? null;
-        venueName = event.venueName ?? null;
-        eventDate = event.eventDate ?? event.date ?? null;
-        eventTiming = event.eventTiming ?? null;
-      } catch {
-        // leave as null if event fetch fails
-      }
+      const event = eventMap[order.eventId] ?? {};
+      const eventName = event.name ?? null;
+      const venueName = event.venueName ?? null;
+      const eventDate = event.eventDate ?? event.date ?? null;
+      const eventTiming = event.eventTiming ?? null;
 
       const items = await Promise.all(
         (order.orderItems ?? []).map(async (item) => {
