@@ -4,9 +4,41 @@ from app.services.swap_service import (
     submit_swap_response,
     get_swap_request,
     get_swap_status,
+    get_swap_requests_by_user,
+    cancel_swap_request,
+    get_available_swap_requests,
 )
 
 swap_bp = Blueprint("swap", __name__)
+
+
+@swap_bp.route("/swap-requests", methods=["GET"])
+def list_swap_requests_route():
+    user_id = request.args.get("userId")
+    if not user_id:
+        return jsonify({"error": "userId query param required"}), 400
+    result = get_swap_requests_by_user(user_id)
+    return jsonify(result), 200
+
+
+@swap_bp.route("/swap-requests/available", methods=["GET"])
+def list_available_swaps_route():
+    event_id = request.args.get("eventId")
+    tier = request.args.get("tier")
+    exclude_user_id = request.args.get("excludeUserId")
+    if not event_id or not tier:
+        return jsonify({"error": "eventId and tier required"}), 400
+    result = get_available_swap_requests(event_id, tier, exclude_user_id)
+    return jsonify(result), 200
+
+
+@swap_bp.route("/swap-requests/<request_id>", methods=["DELETE"])
+def cancel_swap_request_route(request_id):
+    try:
+        result = cancel_swap_request(request_id)
+        return jsonify({"message": "Cancelled", "data": result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
 
 
 @swap_bp.route("/swap", methods=["POST"])
@@ -22,6 +54,8 @@ def create_swap_request_route():
         event_id=payload["eventId"],
         current_seat_id=payload["currentSeatId"],
         desired_tier=payload["desiredTier"],
+        current_tier=payload.get("currentTier"),
+        user_id=payload.get("userId"),
     )
     return jsonify({"message": "Swap request created", "data": result}), 201
 

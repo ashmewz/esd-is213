@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, Numeric, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, func, UniqueConstraint, BigInteger
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -8,10 +8,12 @@ class SwapRequest(Base):
     __table_args__ = {"schema": "swap_service"}
 
     request_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), nullable=False)
+    order_id = Column(BigInteger, nullable=False)
     event_id = Column(UUID(as_uuid=True), nullable=False)
     current_seat_id = Column(UUID(as_uuid=True), nullable=False)
     desired_tier = Column(String(20))
+    current_tier = Column(String(20), nullable=True)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
     status = Column(String(20), default="PENDING")
     expiry = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
@@ -19,10 +21,12 @@ class SwapRequest(Base):
     def to_dict(self):
         return {
             "requestId": str(self.request_id),
-            "orderId": str(self.order_id),
+            "orderId": int(self.order_id) if self.order_id is not None else None,
             "eventId": str(self.event_id),
             "currentSeatId": str(self.current_seat_id),
             "desiredTier": self.desired_tier,
+            "currentTier": self.current_tier,
+            "userId": str(self.user_id) if self.user_id else None,
             "status": self.status
         }
 
@@ -66,22 +70,3 @@ class SwapConfirmation(Base):
         }
 
 
-class SwapPayment(Base):
-    __tablename__ = "swap_payments"
-    __table_args__ = {"schema": "swap_service"}
-
-    swap_payment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    swap_id = Column(UUID(as_uuid=True))
-    payer_order_id = Column(UUID(as_uuid=True))
-    payee_order_id = Column(UUID(as_uuid=True))
-    amount = Column(Numeric(10, 2))
-    status = Column(String(20), default="REQUIRED")
-    transaction_id = Column(UUID(as_uuid=True))
-
-    def to_dict(self):
-        return {
-            "swapPaymentId": str(self.swap_payment_id),
-            "swapId": str(self.swap_id),
-            "amount": float(self.amount) if self.amount else None,
-            "status": self.status
-        }
