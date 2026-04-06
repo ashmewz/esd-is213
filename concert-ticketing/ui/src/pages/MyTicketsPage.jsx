@@ -204,7 +204,7 @@ export default function MyTicketsPage() {
                         </h2>
 
                         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-                          <p>{dateTime.date}{dateTime.time ? ` · ${dateTime.time}` : ""}</p>
+                          <p>{dateTime.date}{order.time ? ` · ${order.time}` : ""}</p>
                           <p>{order.venueName || "Venue TBC"}</p>
                           <p>{formatStatus(order.status)}</p>
                         </div>
