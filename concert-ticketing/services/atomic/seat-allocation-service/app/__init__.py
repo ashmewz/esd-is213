@@ -12,8 +12,10 @@ def create_app():
 
     from app.models.seat_allocation_models import Hold, SeatAssignment, ReallocationLog  # noqa: F401
     from app.routes.hold_routes import hold_bp
+    from app.routes.swap_routes import swap_exec_bp
 
     app.register_blueprint(hold_bp)
+    app.register_blueprint(swap_exec_bp)
 
     # Scenario B choreography: listen for seatmap changes
     from app.messaging.consumer import start_consumer_thread
