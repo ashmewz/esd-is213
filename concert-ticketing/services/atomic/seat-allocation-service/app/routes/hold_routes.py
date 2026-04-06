@@ -1,7 +1,12 @@
+import os
+import requests
 from flask import Blueprint, jsonify, request
 
 from app.services.hold_service import cancel_hold, confirm_hold, create_hold
+from app.core.database import SessionLocal
+from app.models.seat_allocation_models import SeatAssignment
 
+EVENTS_SERVICE_URL = os.getenv("EVENTS_SERVICE_URL", "http://events-service:5000")
 
 hold_bp = Blueprint("holds", __name__)
 
@@ -91,3 +96,67 @@ def confirm_hold_route(hold_id):
         return jsonify({"error": str(exc)}), 404
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 409
+
+
+@hold_bp.route("/seat-assignments", methods=["GET"])
+def list_seat_assignments():
+    """Return all SOLD seat assignments for a user, enriched with seat details.
+    Uses one events-service call per unique event (not per seat) for performance.
+    """
+    user_id = request.args.get("userId")
+    if not user_id:
+        return jsonify({"error": "userId query param required"}), 400
+
+    db = SessionLocal()
+    try:
+        assignments = (
+            db.query(SeatAssignment)
+            .filter(SeatAssignment.user_id == user_id, SeatAssignment.status == "SOLD")
+            .all()
+        )
+
+        # Batch seat lookups by event — one call per event fetches all seats at once
+        event_seats: dict = {}  # event_id -> {seat_id -> seat_dict}
+        for a in assignments:
+            eid = str(a.event_id)
+            if eid not in event_seats:
+                try:
+                    resp = requests.get(
+                        f"{EVENTS_SERVICE_URL}/events/{eid}/seats", timeout=5
+                    )
+                    if resp.status_code == 200:
+                        seats_list = resp.json()
+                        event_seats[eid] = {s["seatId"]: s for s in seats_list}
+                    else:
+                        event_seats[eid] = {}
+                except Exception:
+                    event_seats[eid] = {}
+
+        result = []
+        for a in assignments:
+            eid = str(a.event_id)
+            sid = str(a.seat_id)
+            seat = event_seats.get(eid, {}).get(sid, {})
+            tier = seat.get("tier")
+            section_no = seat.get("sectionNo")
+            row_no = seat.get("rowNo")
+            seat_no = seat.get("seatNo")
+            seat_label = (
+                f"Section {section_no} · Row {row_no} · Seat {seat_no}"
+                if section_no and row_no and seat_no else sid
+            )
+            result.append({
+                "orderId": a.order_id,
+                "eventId": eid,
+                "seatId": sid,
+                "status": a.status,
+                "tier": tier,
+                "sectionNo": section_no,
+                "rowNo": row_no,
+                "seatNo": seat_no,
+                "seatLabel": seat_label,
+            })
+
+        return jsonify(result), 200
+    finally:
+        db.close()
