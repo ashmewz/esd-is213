@@ -298,6 +298,7 @@ export async function getAvailableSwaps(eventId, tier, excludeUserId) {
 
 export async function respondToSwapRequest(swapId, userId, response, requestId) {
   const res = await api.post(`/swap-matches/${swapId}/response`, {
+    swapId,
     userId,
     response: response.toUpperCase(),
     requestId,

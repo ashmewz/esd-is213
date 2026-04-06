@@ -1,4 +1,3 @@
-import os
 from app.clients.swap_client import (
     create_swap_request,
     submit_swap_response,
@@ -194,7 +193,7 @@ def respond_to_swap(swap_id, user_id, response, matched_request_id):
                 "emailA": user_a.get("email"),
                 "emailB": user_b.get("email"),
             })
- 
+    
     return result
 
 
