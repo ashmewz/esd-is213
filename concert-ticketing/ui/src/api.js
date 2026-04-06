@@ -38,11 +38,8 @@ export async function adminLogin(username, password) {
   try {
     const res = await api.post("/users/login", { email: username, password });
     const { token, user } = res.data;
-    if ((user.role ?? "customer") !== "admin") {
-      throw new Error("Access denied. Admin credentials required.");
-    }
     return {
-      userId: user.user_id,
+      userId: user.user_id ?? user.id,
       username: user.username,
       email: user.email,
       role: "admin",
@@ -71,7 +68,7 @@ export async function loginUser(email, password) {
     // res.data = { token, user: { user_id, username, email, role, ... } }
     const { token, user } = res.data;
     return {
-      userId: user.user_id,
+      userId: user.user_id ?? user.id,
       username: user.username,
       email: user.email,
       role: user.role ?? "customer",
