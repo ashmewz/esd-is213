@@ -17,7 +17,7 @@ services:
   - name: swap-requests
     paths:
     - /swap-requests
-    methods: ["POST","OPTIONS"]
+    methods: ["GET","POST","DELETE","OPTIONS"]
     strip_path: false
   - name: swap-matches
     paths:
@@ -65,6 +65,11 @@ services:
     paths:
     - /holds
     methods: ["GET","POST","DELETE","OPTIONS"]
+    strip_path: false
+  - name: seat-assignments
+    paths:
+    - /seat-assignments
+    methods: ["GET","OPTIONS"]
     strip_path: false
 
 - name: payment-service
