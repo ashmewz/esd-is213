@@ -11,6 +11,7 @@ from app.clients.swap_client import (
 from app.clients.user_client import get_user
 from app.clients.events_client import get_event, get_seat, seat_label, update_seat_status
 from app.clients.seat_allocation_client import execute_swap as _execute_swap
+from app.clients.order_client import update_order_seat
 from app.clients.payment_client import (
     get_payment_by_order,
     charge_swap_settlement,
@@ -74,10 +75,11 @@ def start_swap(order_id, event_id, current_seat_id, desired_tier, current_tier=N
     return result
 
 
-def respond_to_swap(swap_id, user_id, response):
+def respond_to_swap(swap_id, user_id, response, matched_request_id):
     result = submit_swap_response(swap_id, user_id, response)
-    status = result.get("status")
-
+    swap_data = get_swap_status(swap_id)
+    status = swap_data.get("status") if swap_data else None
+ 
     if status == "READY_FOR_EXECUTION":
         swap_data = get_swap_status(swap_id)
         if swap_data:
@@ -86,45 +88,46 @@ def respond_to_swap(swap_id, user_id, response):
             req_b_id = swap.get("requestB")
             req_a = get_swap_request(req_a_id) or {}
             req_b = get_swap_request(req_b_id) or {}
-            order_a = req_a.get("orderId")
-            seat_a  = req_a.get("currentSeatId")
-            order_b = req_b.get("orderId")
-            seat_b  = req_b.get("currentSeatId")
-            tier_a  = req_a.get("currentTier")
-            tier_b  = req_b.get("currentTier")
-            event_id = req_a.get("eventId")
-
-            # Determine price difference for cross-tier swaps
+ 
+            # Use matched_request_id to identify offerer (User B) vs lister (User A)
+            # so payment direction is always correct regardless of requestA/B ordering.
+            if str(matched_request_id) == str(req_b_id):
+                offerer_req, lister_req = req_b, req_a
+            else:
+                offerer_req, lister_req = req_a, req_b
+ 
+            order_a  = lister_req.get("orderId")
+            seat_a   = lister_req.get("currentSeatId")
+            order_b  = offerer_req.get("orderId")
+            seat_b   = offerer_req.get("currentSeatId")
+            tier_a   = lister_req.get("currentTier")
+            tier_b   = offerer_req.get("currentTier")
+            event_id = lister_req.get("eventId")
+ 
             price_a = _get_seat_price(event_id, seat_a)
             price_b = _get_seat_price(event_id, seat_b)
             price_diff = abs(price_a - price_b)
             platform_fee = round(price_diff * PLATFORM_FEE_RATE, 2)
-
+ 
             payment_info = {}
             if price_diff > 0:
-                # Identify upgrading user (the one going to higher-priced seat)
-                # req_a wants tier_b, req_b wants tier_a
-                # If seat_b is more expensive: req_a is upgrading → req_a pays diff
-                # If seat_a is more expensive: req_b is upgrading → req_b pays diff
                 if price_b > price_a:
-                    upgrading_order   = order_a
-                    upgrading_user_id = req_a.get("userId")
-                    downgrading_order = order_b
-                    downgrading_user_id = req_b.get("userId")
+                    upgrading_order     = order_a
+                    upgrading_user_id   = lister_req.get("userId")
+                    downgrading_order   = order_b
+                    downgrading_user_id = offerer_req.get("userId")
                 else:
-                    upgrading_order   = order_b
-                    upgrading_user_id = req_b.get("userId")
-                    downgrading_order = order_a
-                    downgrading_user_id = req_a.get("userId")
-
-                # Charge the upgrading user (price diff + platform fee)
+                    upgrading_order     = order_b
+                    upgrading_user_id   = offerer_req.get("userId")
+                    downgrading_order   = order_a
+                    downgrading_user_id = lister_req.get("userId")
+ 
                 charge_result = charge_swap_settlement(upgrading_order, upgrading_user_id, price_diff)
                 if not charge_result or charge_result.get("status") != "SUCCESS":
                     reason = (charge_result or {}).get("reason", "Payment failed")
                     result["paymentError"] = reason
                     return result
-
-                # Refund the downgrading user (price diff only, platform keeps fee)
+ 
                 orig_txn = get_payment_by_order(downgrading_order)
                 if orig_txn and orig_txn.get("externalRefId"):
                     refund_result = refund_swap_difference(
@@ -136,24 +139,23 @@ def respond_to_swap(swap_id, user_id, response):
                     )
                     payment_info["refundStatus"] = (refund_result or {}).get("status")
                 else:
-                    print(f"[swap-orchestration] No original payment intent for order {downgrading_order} — skipping refund")
-
+                    print(f"[swap-orchestration] No payment intent for order {downgrading_order} — skipping refund")
+ 
                 payment_info["priceDiff"] = price_diff
                 payment_info["platformFee"] = platform_fee
                 payment_info["totalCharged"] = round(price_diff + platform_fee, 2)
-
+ 
             _execute_swap(order_a, seat_a, order_b, seat_b)
-
-            # Update events-service seat statuses
+ 
             if event_id:
                 update_seat_status(event_id, seat_a, "sold")
                 update_seat_status(event_id, seat_b, "sold")
-
-            # Enrich both parties for notification
-            user_a = get_user(req_a.get("userId")) or {}
-            user_b = get_user(req_b.get("userId")) or {}
+ 
+            user_a = get_user(lister_req.get("userId")) or {}
+            user_b = get_user(offerer_req.get("userId")) or {}
             publish_event(EXCHANGE, "swap.completed", {
                 "swapId": swap_id,
+                "matchedRequestId": matched_request_id,
                 "userA": {
                     "email": user_a.get("email"),
                     "oldSeatId": seat_a,
@@ -177,23 +179,22 @@ def respond_to_swap(swap_id, user_id, response):
                     } if price_a > price_b and payment_info else {}),
                 },
             })
-
+ 
     elif status == "FAILED":
         swap_data = get_swap_status(swap_id)
         if swap_data:
             swap = swap_data.get("swap", {})
-            req_a_id = swap.get("requestA")
-            req_b_id = swap.get("requestB")
-            req_a = get_swap_request(req_a_id) or {}
-            req_b = get_swap_request(req_b_id) or {}
+            req_a = get_swap_request(swap.get("requestA")) or {}
+            req_b = get_swap_request(swap.get("requestB")) or {}
             user_a = get_user(req_a.get("userId")) or {}
             user_b = get_user(req_b.get("userId")) or {}
             publish_event(EXCHANGE, "swap.failed", {
                 "swapId": swap_id,
+                "matchedRequestId": matched_request_id,
                 "emailA": user_a.get("email"),
                 "emailB": user_b.get("email"),
             })
-
+ 
     return result
 
 

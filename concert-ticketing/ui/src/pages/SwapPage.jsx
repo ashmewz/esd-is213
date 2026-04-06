@@ -23,6 +23,11 @@ export default function SwapPage() {
   const { currentUserId } = useAuth();
   const [activeTab, setActiveTab] = useState("mine");
 
+  // ── "My Swap Requests" tab state ────────────────────────────────────────────
+  // myListings     = ALL swap request records created by the current user
+  // incomingOffers = subset where swapStatus === "awaiting_confirmation"
+  //                  (someone responded to one of user's listings)
+  //                  → shown in Browse tab so Accept/Decline lives there
   const [myListings, setMyListings] = useState([]);
   const [incomingOffers, setIncomingOffers] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
@@ -88,6 +93,8 @@ export default function SwapPage() {
   const browseTicket = eligibleTickets.find((t) => t.key === browseTicketKey) ?? null;
 
   // GET /swap-requests/available?eventId=X&tier=Y&excludeUserId=Z
+  // Returns pending listings from OTHER users for this event+tier.
+  // Backend already excludes currentUserId via excludeUserId param.
   useEffect(() => {
     if (!browseTicket) {
       setAvailable([]);
@@ -100,7 +107,6 @@ export default function SwapPage() {
       .catch((err) => setError(err.message || "Could not load available swaps."))
       .finally(() => setLoadingAvailable(false));
   }, [browseTicketKey]);
-
 
   async function handleListSeat() {
     if (!listTicket || !desiredTier) return;
@@ -126,7 +132,6 @@ export default function SwapPage() {
     }
   }
 
-  // User B sends an offer against an existing listing from User A
   async function handleSendOffer(listing) {
     if (!browseTicket) return;
     setSubmitting(true);
@@ -165,11 +170,13 @@ export default function SwapPage() {
   }
 
   // Accept or Decline an incoming offer on one of the user's own listings
-  async function handleRespond(swapId, response) {
-    setActingRequestId(swapId);
+  // swapId       = swap match ID → used in URL: POST /swap-matches/<swapId>/response
+  // matchedReqId = requestId of the party who sent the offer → sent in the body
+  async function handleRespond(requestId, response) {
+    setActingRequestId(requestId);
     setError("");
     try {
-      await respondToSwapRequest(swapId, currentUserId, response);
+      await respondToSwapRequest(requestId, currentUserId, response, requestId);
       await loadRequests();
     } catch (err) {
       setError(err.message || "Could not submit response.");
@@ -178,6 +185,8 @@ export default function SwapPage() {
     }
   }
 
+  // When a browse ticket is selected, show only incoming offers on the user's
+  // eventId + currentTier as fallback). r.currentSeatId is the seat they listed.
   const filteredIncomingOffers = browseTicket
     ? incomingOffers.filter(
         (r) =>
@@ -262,6 +271,7 @@ export default function SwapPage() {
               }`}
             >
               {tab.label}
+              {/* Badge on Browse tab when there are incoming offers to action */}
               {tab.id === "browse" && incomingOffers.length > 0 && (
                 <span className="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-xs font-semibold text-white">
                   {incomingOffers.length}
@@ -303,6 +313,7 @@ export default function SwapPage() {
               </div>
             </div>
 
+            {/* List My Seat form */}
             {showListForm && (
               <div className="mt-6 rounded-2xl border border-[#ead7dd] bg-white p-6">
                 <h3 className="mb-4 text-base font-semibold text-gray-900">
@@ -406,6 +417,7 @@ export default function SwapPage() {
               </div>
             )}
 
+            {/* Listings — status + cancel only, NO Accept/Decline */}
             {!loadingRequests && myListings.length > 0 && (
               <div className="mt-6 space-y-4">
                 {myListings.map((req) => {
@@ -508,6 +520,7 @@ export default function SwapPage() {
               incoming offers on your listings.
             </p>
 
+            {/* Ticket selector */}
             <div className="mt-6">
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Which ticket do you want to swap?
@@ -552,7 +565,11 @@ export default function SwapPage() {
                 </p>
                 <div className="space-y-4">
                   {filteredIncomingOffers.map((req) => {
-                    const swapId = req.swapId || req.requestId;
+                    // swapId: swap match ID for the URL path
+                    // matchedReqId: requestId of the user who sent the offer
+                    console.log("REQ OBJECT:", req);
+                    const swapId = req.requestId;
+                    const matchedReqId = req.requestId;
                     return (
                       <article
                         key={req.requestId}
@@ -591,20 +608,12 @@ export default function SwapPage() {
 
                         <div className="mt-5 flex flex-wrap gap-3">
                           <button
-                            onClick={() => handleRespond(swapId, "ACCEPT")}
-                            disabled={actingRequestId === swapId}
+                            onClick={() => handleRespond(req.requestId, "ACCEPT")}
+                            disabled={actingRequestId === req.requestId}
                             className="inline-flex items-center gap-2 rounded-xl bg-[#800020] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#6a001a] disabled:opacity-50"
                           >
                             <CheckCircle2 size={15} />
                             Accept Offer
-                          </button>
-                          <button
-                            onClick={() => handleRespond(swapId, "DECLINE")}
-                            disabled={actingRequestId === swapId}
-                            className="inline-flex items-center gap-2 rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            <XCircle size={15} />
-                            Decline Offer
                           </button>
                         </div>
                       </article>

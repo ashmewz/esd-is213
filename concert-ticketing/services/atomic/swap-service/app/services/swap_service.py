@@ -2,7 +2,7 @@
 
 from app.core.database import SessionLocal
 from app.models.swap_models import SwapRequest, SwapMatch, SwapConfirmation
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import uuid
 
 
@@ -79,29 +79,48 @@ def _find_match(db, request):
 
 
 def submit_swap_response(swap_id, user_id, response):
-    """Submit a user's response (ACCEPT/DECLINE) to a swap and evaluate status."""
     db = SessionLocal()
     try:
-        confirmation = SwapConfirmation(
-            swap_id=swap_id,
-            user_id=user_id,
-            status=response.upper(),
-            responded_at=datetime.utcnow(),
-        )
-        db.add(confirmation)
+        import uuid
+
+        swap_id = uuid.UUID(str(swap_id))
+        user_id = uuid.UUID(str(user_id))
+
+        swap = db.query(SwapMatch).get(swap_id)
+        if not swap:
+            raise ValueError("Swap not found")
+
+        existing = db.query(SwapConfirmation).filter(
+            SwapConfirmation.swap_id == swap_id,
+            SwapConfirmation.user_id == user_id
+        ).first()
+
+        if existing:
+            existing.status = response.upper()
+            existing.responded_at = datetime.utcnow()
+        else:
+            confirmation = SwapConfirmation(
+                swap_id=swap_id,
+                user_id=user_id,
+                status=response.upper(),
+                responded_at=datetime.utcnow(),
+            )
+            db.add(confirmation)
+
         db.commit()
-        db.refresh(confirmation)
 
         result = _evaluate_swap(db, swap_id)
 
-        # Update SwapMatch status if terminal
         if result["status"] in ("READY_FOR_EXECUTION", "FAILED"):
-            swap = db.query(SwapMatch).get(swap_id)
-            if swap:
-                swap.status = result["status"]
-                db.commit()
+            swap.status = result["status"]
+
+            if result["status"] == "READY_FOR_EXECUTION":
+                _cancel_related_requests(db, [swap.request_a, swap.request_b])
+
+            db.commit()
 
         return result
+
     finally:
         db.close()
 
@@ -139,12 +158,17 @@ def get_swap_request(request_id):
 
 
 def get_swap_status(swap_id):
-    """Get swap match details with confirmations and overall status."""
     db = SessionLocal()
     try:
         swap = db.query(SwapMatch).get(swap_id)
         if not swap:
             return None
+
+        status = _evaluate_swap(db, swap_id)["status"]
+
+        if status == "READY_FOR_EXECUTION" and swap.status == "MATCHED":
+            swap.status = "COMPLETED"
+            db.commit()
 
         confirmations = (
             db.query(SwapConfirmation)
@@ -155,7 +179,7 @@ def get_swap_status(swap_id):
         return {
             "swap": swap.to_dict(),
             "confirmations": [c.to_dict() for c in confirmations],
-            "status": _evaluate_swap(db, swap_id)["status"],
+            "status": status,
         }
     finally:
         db.close()
@@ -208,3 +232,34 @@ def get_available_swap_requests(event_id, tier, exclude_user_id=None):
         return [r.to_dict() for r in q.all()]
     finally:
         db.close()
+
+def _cancel_related_requests(db, request_ids):
+    matched_requests = (
+        db.query(SwapRequest)
+        .filter(SwapRequest.request_id.in_(request_ids))
+        .all()
+    )
+
+    if not matched_requests:
+        return
+
+    order_ids = {r.order_id for r in matched_requests}
+    seat_ids = {r.current_seat_id for r in matched_requests}
+
+    other_requests = (
+        db.query(SwapRequest)
+        .filter(
+            SwapRequest.request_id.notin_(request_ids),
+            SwapRequest.status.in_(["PENDING", "MATCHED"]),
+            (
+                (SwapRequest.order_id.in_(order_ids)) |
+                (SwapRequest.current_seat_id.in_(seat_ids))
+            )
+        )
+        .all()
+    )
+
+    for r in other_requests:
+        r.status = "CANCELLED"
+
+    db.commit()
