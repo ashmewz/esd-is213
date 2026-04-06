@@ -142,10 +142,20 @@ The Place Booking Service acts as the central coordinator managing all interacti
 > **Test card:** `4242 4242 4242 4242`, any future expiry, any CVC
 
 ### Scenario B — Seatmap Change (Choreography)
-1. Login as admin (role: `admin`)
-2. Go to Admin panel → select an event → update the seatmap (remove seats)
-3. Affected sold seats trigger automatic reassignment or refund via RabbitMQ
-4. Customers receive email notification of their new seat or refund
+
+No single service controls the flow — each microservice reacts autonomously to events via RabbitMQ, enabling loose coupling, scalability, and flexible coordination.
+
+1. An admin initiates a seatmap update through the Admin UI, which calls the Events Service via Kong using `HTTP PUT /events/{eventId}/seatmap`.
+2. The Events Service updates the Event DB and publishes a `SeatMapChanged` event to RabbitMQ.
+3. The Seat Allocation Service consumes the `SeatMapChanged` event from the queue.
+4. The Seat Allocation Service identifies which sold seats are affected and attempts to automatically reassign customers to new available seats in the Seat Allocation DB.
+5. **If reassignment succeeds:** the Seat Allocation Service publishes a `SeatReassigned` event to RabbitMQ.
+6. **If reassignment fails** (no available seats): the Seat Allocation Service publishes a `RefundRequired` event to RabbitMQ.
+7. If a refund is needed, the Payment Service consumes the `RefundRequired` event and calls the Stripe API via `HTTP POST /refund`.
+8. Stripe processes the refund and returns the result to the Payment Service, which saves the record in the Payment DB.
+9. The Payment Service publishes a `paymentRefundIssued` event to RabbitMQ.
+10. The Notification Service consumes either the `SeatReassigned` or `paymentRefundIssued` event and sends an email to the customer with their new seat details or refund status.
+11. The Notification Service calls the OutSystems Order Service via `HTTP PUT /orders/{orderId}/status/` to update the order to `CONFIRMED` (if reassigned) or `CANCELLED` (if refunded).
 
 ### Scenario C — Seat Swap
 1. User A (e.g. has CAT1 seat) goes to **Swap** → lists their ticket
