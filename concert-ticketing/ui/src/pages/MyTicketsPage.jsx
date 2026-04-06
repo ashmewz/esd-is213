@@ -55,7 +55,7 @@ export default function MyTicketsPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
 
@@ -64,7 +64,7 @@ export default function MyTicketsPage() {
     try {
       const data = await getMyOrders(currentUserId);
       setOrders(data);
-      if (data[0]) setExpandedOrderId((current) => current ?? data[0].orderId);
+      if (data[0]) setExpandedOrderIds((current) => current.size === 0 ? new Set([data[0].orderId]) : current);
     } catch (err) {
       setError(err.message || "Could not load your tickets.");
     } finally {
@@ -183,7 +183,7 @@ export default function MyTicketsPage() {
           {!loading && !error && filteredOrders.length > 0 && (
             <div className="mt-8 space-y-4">
               {filteredOrders.map((order) => {
-                const expanded = expandedOrderId === order.orderId;
+                const expanded = expandedOrderIds.has(order.orderId);
                 const dateTime = formatDate(order.date ?? order.createdAt);
 
                 return (
@@ -221,7 +221,11 @@ export default function MyTicketsPage() {
 
                       <div className="shrink-0">
                         <button
-                          onClick={() => setExpandedOrderId(expanded ? null : order.orderId)}
+                          onClick={() => setExpandedOrderIds((prev) => {
+                            const next = new Set(prev);
+                            expanded ? next.delete(order.orderId) : next.add(order.orderId);
+                            return next;
+                          })}
                           className="inline-flex items-center gap-2 rounded-xl border-2 border-[#2563eb] px-5 py-2.5 text-base font-semibold text-[#2563eb] transition hover:bg-blue-50"
                         >
                           View Details
