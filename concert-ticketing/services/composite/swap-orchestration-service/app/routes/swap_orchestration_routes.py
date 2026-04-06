@@ -65,7 +65,17 @@ def swap_response_route(swap_id):
     payload = request.get_json(silent=True)
     if not payload or not payload.get("userId") or not payload.get("response"):
         return jsonify({"error": "userId and response required"}), 400
-    result = respond_to_swap(swap_id, payload["userId"], payload["response"])
+ 
+    matched_request_id = payload.get("requestId")  # offerer's requestId
+    if not matched_request_id:
+        return jsonify({"error": "requestId of the offering ticket is required"}), 400
+ 
+    result = respond_to_swap(
+        swap_id,
+        payload["userId"],
+        payload["response"],
+        matched_request_id,
+    )
     return jsonify({"message": "Response submitted", "data": result}), 200
 
 

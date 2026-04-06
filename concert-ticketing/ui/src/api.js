@@ -289,17 +289,18 @@ export async function cancelSwapRequest(requestId) {
   return res.data;
 }
 
-export async function respondToSwapRequest(swapId, userId, response) {
-  const res = await api.post(`/swap-matches/${swapId}/response`, {
-    userId,
-    response: response.toUpperCase(), // backend expects ACCEPT / DECLINE
-  });
-  return res.data;
-}
-
 export async function getAvailableSwaps(eventId, tier, excludeUserId) {
   const params = new URLSearchParams({ eventId, tier });
   if (excludeUserId) params.append("excludeUserId", excludeUserId);
   const res = await api.get(`/swap-requests/available?${params}`);
+  return res.data;
+}
+
+export async function respondToSwapRequest(swapId, userId, response, requestId) {
+  const res = await api.post(`/swap-matches/${swapId}/response`, {
+    userId,
+    response: response.toUpperCase(),
+    requestId,
+  });
   return res.data;
 }
